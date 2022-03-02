@@ -3,12 +3,14 @@
 
 #include "TestActor.h"
 
-// Sets default values
+
+// Sets default values (CONSTRUCTOR):
 ATestActor::ATestActor()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	SuperMesh = CreateDefaultSubobject<UStaticMeshComponent>("Landscape Mesh");
 }
 
 // Called when the game starts or when spawned
@@ -22,6 +24,11 @@ void ATestActor::BeginPlay()
 void ATestActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	FVector NewLocation = GetActorLocation();
+	NewLocation.Z += 1.f;
+	
+	SetActorLocation(NewLocation);
 
 }
 

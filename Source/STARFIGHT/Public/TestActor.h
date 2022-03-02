@@ -4,7 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Landscape.h"
+
 #include "TestActor.generated.h"
+
 
 UCLASS()
 class STARFIGHT_API ATestActor : public AActor
@@ -22,5 +25,11 @@ protected:
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	UPROPERTY(EditAnywhere) // Defines "Unreal Engine Specific" Variables, editable anywhere
+	UStaticMeshComponent* SuperMesh;
+
+	
+
 
 };
