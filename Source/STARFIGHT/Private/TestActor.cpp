@@ -1,6 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "TestActor.h"
 
 
@@ -32,3 +31,14 @@ void ATestActor::Tick(float DeltaTime)
 
 }
 
+FVector2D ATestActor::GenerateNoiseMap() {
+
+
+	//for (TActorIterator<ATestActor> ActorItr(GetWorld()); ActorItr; ++ActorItr)
+	//{ // Same as with the Object Iterator, access the subclass instance with the * or -> operators.
+
+	//}
+
+
+	return FVector2D();
+}

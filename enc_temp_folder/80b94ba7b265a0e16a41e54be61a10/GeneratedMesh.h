@@ -4,33 +4,37 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Landscape.h"
 #include "Math.h"
-
-#include "TestActor.generated.h"
-
+#include "ProceduralMeshComponent.h"
+#include "GeneratedMesh.generated.h"
 
 UCLASS()
-class STARFIGHT_API ATestActor : public AActor
+class STARFIGHT_API AGeneratedMesh : public AActor
 {
 	GENERATED_BODY()
-		FVector2D GenerateNoiseMap();
+
+	TArray<FVector> Vertices;
+	TArray<int32> Triangles;
+	TArray<FVector2D> UVs;
+
+	UPROPERTY()
+		UProceduralMeshComponent* GeneratedMesh;
+
+	void CreateMesh();
 	
 public:	
 	// Sets default values for this actor's properties
-	ATestActor();
+	AGeneratedMesh();
 
 protected:
+	UPROPERTY(EditAnywhere)
+		UMaterialInterface* Material;
+
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-
-	
 
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
-
-	UPROPERTY(EditAnywhere) // Defines "Unreal Engine Specific" Variables, editable anywhere
-	UStaticMeshComponent* SuperMesh;
 
 };
