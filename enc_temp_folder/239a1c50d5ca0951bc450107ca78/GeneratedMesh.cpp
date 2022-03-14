@@ -42,14 +42,11 @@ void AGeneratedMesh::GenerateTerrainMesh(float heightMap) {
 	int32 width = 10;
 	int32 height = 10;
 
-	FGeneratedMeshData meshData = FGeneratedMeshData(width, height);
-	int32 vertexIndex = 0;
+	int32 TEMP = 0;
 
 	for (int32 y = 0; y < height; y++) {
 		for (int32 x = 0; x < width; x++) {
-			meshData.Vertices[vertexIndex] = FVector(x, y, 0); // NOTE: Replace '0' with 'heightMap[x, y]' value calculated from the perlinNoise function when finished!!!
-
-			vertexIndex++;
+			TEMP += 1;
 		}
 	}
 
