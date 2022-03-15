@@ -39,7 +39,11 @@ class STARFIGHT_API UGenerateNoiseMap : public UBlueprintFunctionLibrary {
 
 	GENERATED_BODY()
 
+
 public:
 	UFUNCTION()
-		static TArray<FArray2D> GenerateNoiseMap(int32 mapWidth, int32 mapHeight, float scale);
+		static TArray<FArray2D> GenerateNoiseMap(int32 mapWidth, int32 mapHeight, float scale); // GENERATES OUR NOISE MAP
+	
+	UFUNCTION()
+		static TArray<FArray2D> UpdateNoiseMap(int32 mapWidth, int32 mapHeight, float scale); // UPDATES OUR NOISE MAP (in editor)
 };

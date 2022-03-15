@@ -14,30 +14,35 @@ UCLASS()
 class STARFIGHT_API AGeneratedMesh : public AActor {
 	GENERATED_BODY()
 
-	UPROPERTY(VisibleAnywhere)
+public:
+	UPROPERTY()
 		UProceduralMeshComponent* ProceduralMesh;
 
-	UPROPERTY()
-		int32 mapWidth = 10;
-	UPROPERTY()
-		int32 mapHeight = 10;
-	UPROPERTY()
-		float scale = 0.2;
+	UPROPERTY(EditAnywhere, Category="Generated Mesh Properties")
+		int32 mapWidth = 50;
+	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
+		int32 mapHeight = 50;
+	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
+		float scale = 1;
 
 
-	UPROPERTY(VisibleAnywhere)
-		TArray<FArray2D> heightMap = UGenerateNoiseMap::GenerateNoiseMap(mapWidth, mapHeight, scale);
+	UPROPERTY()
+		TArray<FArray2D> noiseMap;
+	UPROPERTY()
+		FGeneratedMeshData meshData;
 	
-public:	
+
 	// Sets default values for this actor's properties
 	AGeneratedMesh();
 
 protected:
-	UPROPERTY(EditAnywhere, Category = "Procedural Mesh Material")
+	UPROPERTY()
 		UMaterialInterface* Material;
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
+	// Called when any property is updated in the Editor:
+	virtual void OnConstruction(const FTransform& Transform) override;
 
 public:	
 	// Called every frame
@@ -45,6 +50,8 @@ public:
 
 	void PostActorCreated();
 	void PostLoad();
-	void GenerateTerrainMesh(int32 inputWidth, int32 inputHeight, TArray<FArray2D> inputHeightMap);
+
+	void GenerateTerrainMesh(int32 inputWidth, int32 inputHeight); // GENERATES OUR TERRAIN MESH
+	void UpdateTerrainMesh();
 
 };
