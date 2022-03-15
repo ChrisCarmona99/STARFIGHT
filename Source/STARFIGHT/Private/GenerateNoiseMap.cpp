@@ -4,16 +4,15 @@
 #include "GenerateNoiseMap.h"
 
 
-FVector2D UGenerateNoiseMap::GenerateNoiseMap(int mapWidth, int mapHeight, float scale, ALandscape *GeneratedLandscape) {
-	//UTexture2D* heightMap = GeneratedLandscape->LandscapeComponents[0]->HeightmapTexture;
+TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32 mapWidth, int32 mapHeight, float scale) {
 
-	
-	FVector2D perlinNoiseInput;
+	TArray<FArray2D> noiseMap;
 
-	TArray<FVector2D> noiseMap;
-	noiseMap.Init(FVector2D(), mapWidth * mapHeight);
-
-	TArray<FArray_2D> noiseMap2;
+	// Initialize our noiseMap first with an array of 'FArray2D' structs, then initialize the 'secondArray' of each 'FArray2D' structs with a list of '0.0f'
+	noiseMap.Init(FArray2D(), mapWidth);
+	for (auto& nestedStruct : noiseMap) {
+		nestedStruct.secondArray.Init(0.0f, mapHeight);
+	}
 	
 
 	if (scale <= 0) {
@@ -21,21 +20,20 @@ FVector2D UGenerateNoiseMap::GenerateNoiseMap(int mapWidth, int mapHeight, float
 	}
 	
 	for (int y = 0; y < mapHeight; y++) {
-		noiseMap2.Add(FArray_2D());
 		for (int x = 0; x < mapWidth; x++) {
 
 			float sampleX = x / scale;
 			float sampleY = y / scale;
 
-			perlinNoiseInput.Set(sampleX, sampleY);
-			float perlinValue = FMath::PerlinNoise2D(perlinNoiseInput);
+			//UE_LOG(LogTemp, Warning, TEXT("sampleX: %f"), sampleX);  // DELETE
+			//UE_LOG(LogTemp, Warning, TEXT("sampleY: %f"), sampleY);  // DELETE
 
-			/*noiseMap2[x].
-				secondArray[y] = perlinValue;*/
+			float perlinValue = FMath::PerlinNoise2D(FVector2D(sampleX * 0.3, sampleY * 0.3));
+			//UE_LOG(LogTemp, Warning, TEXT("perlinValue: %f"), perlinValue);  // DELETE
 
-			noiseMap2[x].Add(perlinValue);
+			noiseMap[y].secondArray[x] = perlinValue; // appends our perlineValue to the 'secondArray' TArray in the FArray2D struct at index 'y'
 		}
 	}
 
-	return FVector2D();
+	return noiseMap;
 }

@@ -3,6 +3,7 @@
 
 #include "GeneratedMesh.h"
 
+// THIS IS OUR GENERATED MESH ACTOR... ALL CALCULATED VALUES END UP HERE!!!
 
 // Sets default values
 AGeneratedMesh::AGeneratedMesh()
@@ -28,46 +29,51 @@ void AGeneratedMesh::Tick(float DeltaTime) {
 // Called when 'GeneratedMesh' is spawned (at runtime or when you drop it into the world in editor)
 void AGeneratedMesh::PostActorCreated() {
 	Super::PostActorCreated();
-	GenerateTerrainMesh(TEMP_heightMap);
+	GenerateTerrainMesh(mapWidth, mapHeight, heightMap);
 }
 
 // Called when 'GeneratedMesh' is already in level and map is opened
 void AGeneratedMesh::PostLoad() {
 	Super::PostLoad();
-	GenerateTerrainMesh(TEMP_heightMap);
+	GenerateTerrainMesh(mapWidth, mapHeight,heightMap);
 }
 
-void AGeneratedMesh::GenerateTerrainMesh(float heightMap) {
+void AGeneratedMesh::GenerateTerrainMesh(int32 inputWidth, int32 inputHeight, TArray<FArray2D> inputHeightMap) {
 
-	int32 width = 10;
-	int32 height = 10;
+	int32 width = inputWidth;
+	int32 height = inputHeight;
+	float topLeftX = (width - 1) / -2.f;
+	float topLeftZ = (height - 1) / 2.f;
 
 	FGeneratedMeshData meshData = FGeneratedMeshData(width, height);
 	int32 vertexIndex = 0;
 
 	for (int32 y = 0; y < height; y++) {
 		for (int32 x = 0; x < width; x++) {
-			meshData.Vertices[vertexIndex] = FVector(x, y, 0); // NOTE: Replace '0' with 'heightMap[x, y]' value calculated from the perlinNoise function when finished!!!
 
+			float currentVertexHeight = heightMap[y].secondArray[x];
+			UE_LOG(LogTemp, Warning, TEXT("Output: %f"), currentVertexHeight);  // DELETE
+
+			// Add each vertex, uv, normal, tangent, & vertexColor:
+			meshData.vertices[vertexIndex] = FVector(topLeftX + x, topLeftZ - y, currentVertexHeight); // NOTE: Replace '0' with 'heightMap[x, y]' value calculated from the perlinNoise function when finished!!!
+			meshData.uvs[vertexIndex] = FVector2D(x / (float)width, y / (float)height);
+			meshData.normals[vertexIndex] = FVector(1, 0, 0);
+			meshData.tangents[vertexIndex] = FProcMeshTangent(0, 1, 0);
+			meshData.vertexColors[vertexIndex] = FLinearColor(0.75, 0.75, 0.75, 1.0);
+			
+			// Check if we are still one vertex away from the bottom and right boundaries:
+			if (x < width - 1 && y < height - 1) {
+				// Add the two triangles that make up each square tile of mesh:
+				meshData.AddTriangle(vertexIndex, vertexIndex + width + 1, vertexIndex + width);
+				meshData.AddTriangle(vertexIndex + width + 1, vertexIndex, vertexIndex + 1);
+			}
+			
 			vertexIndex++;
 		}
 	}
 
-	normals.Add(FVector(1, 0, 0));
-	normals.Add(FVector(1, 0, 0));
-	normals.Add(FVector(1, 0, 0));
 
-	UV0.Add(FVector2D(0, 0));
-	UV0.Add(FVector2D(10, 0));
-	UV0.Add(FVector2D(0, 10));
-
-	tangents.Add(FProcMeshTangent(0, 1, 0));
-	tangents.Add(FProcMeshTangent(0, 1, 0));
-	tangents.Add(FProcMeshTangent(0, 1, 0));
-
-	
-
-	//ProceduralMesh->CreateMeshSection_LinearColor(0, Vertices, Triangles, normals, UV0, vertexColors, tangents, true);
+	ProceduralMesh->CreateMeshSection_LinearColor(0, meshData.vertices, meshData.triangles, meshData.normals, meshData.uvs, meshData.vertexColors, meshData.tangents, true);
 
 	// Enable collision data:
 	ProceduralMesh->ContainsPhysicsTriMeshData(true);

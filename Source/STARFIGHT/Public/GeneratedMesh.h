@@ -5,29 +5,28 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Math.h"
-#include "ProceduralMeshComponent.h"
 #include "MeshData.h"
+#include "GenerateNoiseMap.h"
 
 #include "GeneratedMesh.generated.h"
 
 UCLASS()
-class STARFIGHT_API AGeneratedMesh : public AActor
-{
+class STARFIGHT_API AGeneratedMesh : public AActor {
 	GENERATED_BODY()
-		UPROPERTY(VisibleAnywhere)
-		TArray<FVector> normals;
-		UPROPERTY(VisibleAnywhere)
-		TArray<FVector2D> UV0;
-		UPROPERTY(VisibleAnywhere)
-		TArray<FProcMeshTangent> tangents;
-		UPROPERTY(VisibleAnywhere)
-		TArray<FLinearColor> vertexColors;
 
-		UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleAnywhere)
 		UProceduralMeshComponent* ProceduralMesh;
 
-		UPROPERTY(VisibleAnywhere)
-		float TEMP_heightMap;
+	UPROPERTY()
+		int32 mapWidth = 10;
+	UPROPERTY()
+		int32 mapHeight = 10;
+	UPROPERTY()
+		float scale = 0.2;
+
+
+	UPROPERTY(VisibleAnywhere)
+		TArray<FArray2D> heightMap = UGenerateNoiseMap::GenerateNoiseMap(mapWidth, mapHeight, scale);
 	
 public:	
 	// Sets default values for this actor's properties
@@ -46,50 +45,6 @@ public:
 
 	void PostActorCreated();
 	void PostLoad();
-	void GenerateTerrainMesh(float heightMap);
+	void GenerateTerrainMesh(int32 inputWidth, int32 inputHeight, TArray<FArray2D> inputHeightMap);
 
 };
-
-
-
-//USTRUCT()
-//struct FGeneratedMeshData {
-//	GENERATED_BODY()
-//
-//	explicit FORCEINLINE FGeneratedMeshData(int32 inputMeshWidth, int32 inputMeshHeight);
-//
-//	UPROPERTY()
-//		int32 meshWidth;
-//	UPROPERTY()
-//		int32 meshHeight;
-//
-//	UPROPERTY(EditAnywhere)
-//		TArray<FVector> Vertices;
-//	UPROPERTY(EditAnywhere)
-//		TArray<int32> Triangles;
-//
-//	UPROPERTY(EditAnywhere)
-//		int32 triangleIndex;
-//
-//	
-//
-//	// Add a triangle:
-//	void addTriangle(int32 a, int32 b, int32 c) {
-//
-//		Triangles[triangleIndex] = a;
-//		Triangles[triangleIndex + 1] = b;
-//		Triangles[triangleIndex + 2] = c;
-//
-//		triangleIndex += 3;
-//	}
-//};
-//
-////FORCEINLINE FGeneratedMeshData::FGeneratedMeshData(const int32 inputMeshWidth, const int32 inputMeshHeight) : meshWidth(inputMeshWidth), meshHeight(inputMeshHeight) {
-////	Vertices.Init(FVector(), meshWidth * meshHeight);
-////	Triangles.Init(int32(), (meshWidth - 1) * (meshHeight - 1) * 6);
-////	triangleIndex = 0;
-////}
-//
-//FGeneratedMeshData::FGeneratedMeshData(int32 inputMeshWidth, int32 inputMeshHeight) : meshWidth(inputMeshWidth), meshHeight(inputMeshHeight)
-//{
-//}
