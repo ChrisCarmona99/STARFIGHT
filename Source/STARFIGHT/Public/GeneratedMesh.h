@@ -17,13 +17,23 @@ class STARFIGHT_API AGeneratedMesh : public AActor {
 public:
 	UPROPERTY()
 		UProceduralMeshComponent* ProceduralMesh;
-
-	UPROPERTY(EditAnywhere, Category="Generated Mesh Properties")
+	/*
+	* 	All of the subsequent values, while called in our 'GenerateNoiseMap', are defined here BECAUSE we call 'GenerateNoiseMap' ONLY IN 'GenerateMesh.cpp'...
+	*	THUS... they are instantiated in 'GeneratedMesh.h' since we only need these variables in 'GeneratedMesh.cpp', thus making it easier to manipulate them
+	*		in the editor during runtime!
+	*/
+	UPROPERTY(EditAnywhere, Category="Generated Mesh Size")
 		int32 mapWidth = 50;
-	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
+	UPROPERTY(EditAnywhere, Category = "Generated Mesh Size")
 		int32 mapHeight = 50;
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float scale = 1;
+		float noiseScale = 1;
+	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
+		int octaves = 2;
+	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
+		float persistance = 0.5;
+	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
+		float lacunarity = 1; // Should always be GREATER than 1;
 
 
 	UPROPERTY()

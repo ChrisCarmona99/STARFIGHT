@@ -10,7 +10,7 @@ AGeneratedMesh::AGeneratedMesh()
 	ProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>("GeneratedMesh");
 	RootComponent = ProceduralMesh;
 
-	noiseMap = UGenerateNoiseMap::GenerateNoiseMap(mapWidth, mapHeight, scale);
+	noiseMap = UGenerateNoiseMap::GenerateNoiseMap(mapWidth, mapHeight, noiseScale, octaves, persistance, lacunarity);
 	meshData = FGeneratedMeshData(mapWidth, mapHeight);
 
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -24,6 +24,9 @@ void AGeneratedMesh::BeginPlay() {
 }
 
 void AGeneratedMesh::OnConstruction(const FTransform& Transform) {
+	/*
+	If you get the same 'array index' error again... its becuase you are calling this function, which fucks up any spawned mesh in the world...
+	*/
 	UpdateTerrainMesh();
 }
 
@@ -66,7 +69,6 @@ void AGeneratedMesh::GenerateTerrainMesh(int32 inputWidth, int32 inputHeight) {
 		for (int32 x = 0; x < width; x++) {
 
 			float currentVertexHeight = noiseMap[y].secondArray[x];
-			//UE_LOG(LogTemp, Warning, TEXT("Output: %f"), currentVertexHeight);  // DELETE
 
 			// Add each vertex, uv, normal, tangent, & vertexColor:
 			meshData.vertices[vertexIndex] = FVector(topLeftX + x, topLeftZ - y, currentVertexHeight);
@@ -94,18 +96,32 @@ void AGeneratedMesh::GenerateTerrainMesh(int32 inputWidth, int32 inputHeight) {
 }
 
 
+// CURRENT ERROR IS CAUSE A 50 by 50 GENERATED MESH IS IN THE WORLD... AND I'M CALLING ONE OF OUR MESH GENERATION FUNCTIONS ON SAID MESH..... bruh come on...
+
 void AGeneratedMesh::UpdateTerrainMesh() {
+
 	int32 index = 0;
 
-	for (auto& vertex : meshData.vertices) {
+	if (mapWidth < 1) { mapWidth = 1; }
+	if (mapHeight < 1) { mapHeight = 1; }
+	if (noiseScale <= 0) { noiseScale = 0.0001f; }
+	if (lacunarity < 1) { lacunarity = 1; }
+	if (octaves < 0) { octaves = 0; } else if (octaves > 7) { octaves = 7; }
+	if (persistance < 0) { persistance = 0; } else if (persistance > 1) { persistance = 1; }
 
-		float newSampleX = vertex.X / scale;
-		float newSampleY = vertex.Y / scale;
+	TArray<FArray2D> newNoiseMap = UGenerateNoiseMap::GenerateNoiseMap(mapWidth, mapHeight, noiseScale, octaves, persistance, lacunarity);
 
-		float newPerlinValue = FMath::PerlinNoise2D(FVector2D(newSampleX, newSampleY));
+	int32 vertexIndex = 0;
 
-		vertex = FVector(vertex.X, vertex.Y, newPerlinValue);
-		index++;
+	for (int32 y = 0; y < mapWidth; y++) {
+		for (int32 x = 0; x < mapHeight; x++) {
+
+			float newVertexHeight = newNoiseMap[y].secondArray[x];
+
+			meshData.vertices[vertexIndex] = FVector(meshData.vertices[vertexIndex].X, meshData.vertices[vertexIndex].Y, newVertexHeight);
+
+			vertexIndex++;
+		}
 	}
 
 	ProceduralMesh->UpdateMeshSection_LinearColor(0, meshData.vertices, meshData.normals, meshData.uvs, meshData.vertexColors, meshData.tangents);

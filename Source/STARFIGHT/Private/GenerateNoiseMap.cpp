@@ -4,29 +4,56 @@
 #include "GenerateNoiseMap.h"
 
 
-TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32 mapWidth, int32 mapHeight, float scale) {
+TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32 mapWidth, int32 mapHeight, float noiseScale, int octaves, float persistance, float lacurnarity) {
 
 	TArray<FArray2D> noiseMap;
 
+	float perlinValue;
+
 	// Initialize our noiseMap first with an array of 'FArray2D' structs, then initialize the 'secondArray' of each 'FArray2D' structs with a list of '0.0f'
 	noiseMap.Init(FArray2D(), mapWidth);
-	for (auto& nestedStruct : noiseMap) { 
-		nestedStruct.secondArray.Init(0.0f, mapHeight); 
-	}
+	for (auto& nestedStruct : noiseMap) { nestedStruct.secondArray.Init(0.0f, mapHeight); }
 	
-	if (scale <= 0) { 
-		scale = 0.0001f; 
+	if (noiseScale <= 0) {
+		noiseScale = 0.0001f;
 	}
+
+	float maxNoiseHeight = 0;
+	float minNoiseHeight = 1;
+
 	
 	for (int y = 0; y < mapHeight; y++) {
 		for (int x = 0; x < mapWidth; x++) {
 
-			float sampleX = (x * 0.9) / scale;
-			float sampleY = (y * 0.9) / scale;
+			float amplitude = 1;
+			float frequency = 1;
+			float noiseHeight = 0;
 
-			float perlinValue = FMath::PerlinNoise2D(FVector2D(sampleX, sampleY));
+			for (int i = 0; i < octaves; i++) {
+				float sampleX = (x * 0.9) / noiseScale * frequency;
+				float sampleY = (y * 0.9) / noiseScale * frequency;
 
-			noiseMap[y].secondArray[x] = perlinValue; 
+				perlinValue = FMath::PerlinNoise2D(FVector2D(sampleX, sampleY)) * 2 - 1; // we multiply by '2' then subtract '1' so that our values can be negative!!
+				noiseHeight += perlinValue * amplitude;
+
+				amplitude *= persistance;  // Decreases with each octave
+				frequency *= lacurnarity; // multiplied by 'lacurnarity' so the frequency increases each octave (since lacurnarity is always greater than 1)
+			}
+
+			if (noiseHeight > maxNoiseHeight) {
+				maxNoiseHeight = noiseHeight;
+			} else if (noiseHeight < minNoiseHeight) {
+				minNoiseHeight = noiseHeight;
+			}
+
+			noiseMap[y].secondArray[x] = perlinValue;
+			// perlinValue = 0; // resets 'perlinValue    // SUPPOSED TO return a value between 0 & 1...
+		}
+	}
+
+	for (int y = 0; y < mapHeight; y++) {
+		for (int x = 0; x < mapWidth; x++) {
+			noiseMap[y].secondArray[x] = InverseLerp(minNoiseHeight, maxNoiseHeight, noiseMap[y].secondArray[x]);
 		}
 	}
 
@@ -34,6 +61,12 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32 mapWidth, int32 mapHe
 }
 
 
-TArray<FArray2D> UGenerateNoiseMap::UpdateNoiseMap(int32 mapWidth, int32 mapHeight, float scale) {
+float UGenerateNoiseMap::InverseLerp(float min, float max, float value) {
+	float output = (value - min) / (max - min);
+	return output;
+}
+
+
+TArray<FArray2D> UGenerateNoiseMap::UpdateNoiseMap(int32 mapWidth, int32 mapHeight, float noiseScale) {
 	return TArray<FArray2D>();
 }
