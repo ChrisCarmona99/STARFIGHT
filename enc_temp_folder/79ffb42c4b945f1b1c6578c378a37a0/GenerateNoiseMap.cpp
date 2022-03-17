@@ -4,15 +4,15 @@
 #include "GenerateNoiseMap.h"
 
 
-TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32 mapChunkSize, float noiseScale, int octaves, float persistance, float lacurnarity) {
+TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32 mapWidth, int32 mapHeight, float noiseScale, int octaves, float persistance, float lacurnarity) {
 
 	TArray<FArray2D> noiseMap;
 
 	float perlinValue;
 
 	// Initialize our noiseMap first with an array of 'FArray2D' structs, then initialize the 'secondArray' of each 'FArray2D' structs with a list of '0.0f'
-	noiseMap.Init(FArray2D(), mapChunkSize);
-	for (auto& nestedStruct : noiseMap) { nestedStruct.secondArray.Init(0.0f, mapChunkSize); }
+	noiseMap.Init(FArray2D(), mapWidth);
+	for (auto& nestedStruct : noiseMap) { nestedStruct.secondArray.Init(0.0f, mapHeight); }
 	
 	if (noiseScale <= 0) {
 		noiseScale = 0.0001f;
@@ -22,8 +22,8 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32 mapChunkSize, float n
 	float minNoiseHeight = 1;
 
 	
-	for (int y = 0; y < mapChunkSize; y++) {
-		for (int x = 0; x < mapChunkSize; x++) {
+	for (int y = 0; y < mapHeight; y++) {
+		for (int x = 0; x < mapWidth; x++) {
 
 			float amplitude = 1;
 			float frequency = 1;
@@ -50,8 +50,8 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32 mapChunkSize, float n
 		}
 	}
 
-	for (int y = 0; y < mapChunkSize; y++) {
-		for (int x = 0; x < mapChunkSize; x++) {
+	for (int y = 0; y < mapHeight; y++) {
+		for (int x = 0; x < mapWidth; x++) {
 			noiseMap[y].secondArray[x] = InverseLerp(minNoiseHeight, maxNoiseHeight, noiseMap[y].secondArray[x]);
 		}
 	}
@@ -67,6 +67,6 @@ float UGenerateNoiseMap::InverseLerp(float min, float max, float value) {
 
 
 // CURRENTLY NOT BEING USED:
-TArray<FArray2D> UGenerateNoiseMap::UpdateNoiseMap(int32 mapChunkSize, float noiseScale) {
+TArray<FArray2D> UGenerateNoiseMap::UpdateNoiseMap(int32 mapWidth, int32 mapHeight, float noiseScale) {
 	return TArray<FArray2D>();
 }

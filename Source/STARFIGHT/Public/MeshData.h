@@ -40,7 +40,7 @@ struct FGeneratedMeshData {
 
 	// Add a triangle:
 	void AddTriangle(int32 a, int32 b, int32 c) {
-		UE_LOG(LogTemp, Warning, TEXT("triangle index: %d"), triangleIndex);
+		/*UE_LOG(LogTemp, Warning, TEXT("triangle index: %d"), triangleIndex);*/
 		triangles[triangleIndex] = a;
 		triangles[triangleIndex + 1] = b;
 		triangles[triangleIndex + 2] = c;

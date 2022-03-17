@@ -42,11 +42,11 @@ class STARFIGHT_API UGenerateNoiseMap : public UBlueprintFunctionLibrary {
 
 public:
 	UFUNCTION()
-		static TArray<FArray2D> GenerateNoiseMap(int32 mapChunkSize, float noiseScale, int octaves, float persistance, float lacurnarity); // GENERATES OUR NOISE MAP
+		static TArray<FArray2D> GenerateNoiseMap(int32 mapWidth, int32 mapHeight, float noiseScale, int octaves, float persistance, float lacurnarity); // GENERATES OUR NOISE MAP
 
 	UFUNCTION()
 		static float InverseLerp(float min, float max, float value);
 	
 	UFUNCTION()
-		static TArray<FArray2D> UpdateNoiseMap(int32 mapChunkSize, float noiseScale); // UPDATES OUR NOISE MAP (in editor)
+		static TArray<FArray2D> UpdateNoiseMap(int32 mapWidth, int32 mapHeight, float noiseScale); // UPDATES OUR NOISE MAP (in editor)
 };

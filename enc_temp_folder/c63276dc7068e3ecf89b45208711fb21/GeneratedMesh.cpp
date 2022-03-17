@@ -12,7 +12,7 @@ AGeneratedMesh::AGeneratedMesh() {
 
 	BaseMaterial = CreateDefaultSubobject<UMaterialInterface>("BaseMaterial");
 
-	noiseMap = UGenerateNoiseMap::GenerateNoiseMap(mapChunkSize, noiseScale, octaves, persistance, lacunarity);
+	noiseMap = UGenerateNoiseMap::GenerateNoiseMap(mapChunkSize, mapChunkSize, noiseScale, octaves, persistance, lacunarity);
 	meshData = FGeneratedMeshData(mapChunkSize, mapChunkSize);
 
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -53,13 +53,10 @@ void AGeneratedMesh::GenerateTerrainMesh() {
 	float topLeftX = (mapChunkSize - 1) / -2.f;
 	float topLeftZ = (mapChunkSize - 1) / 2.f;
 
-	// Calculates the increment for mesh LODs:
-	int32 meshSimplificationIncrement = levelOfDetail * 2;
-
 	int32 vertexIndex = 0;
 
-	for (int32 y = 0; y < mapChunkSize; y += meshSimplificationIncrement) {
-		for (int32 x = 0; x < mapChunkSize; x += meshSimplificationIncrement) {
+	for (int32 y = 0; y < mapChunkSize; y++) {
+		for (int32 x = 0; x < mapChunkSize; x++) {
 
 			float currentVertexHeight = calculateWeightCurve(noiseMap[y].secondArray[x], weightCurveExponent) * heightMultiplier;
 
@@ -82,16 +79,18 @@ void AGeneratedMesh::GenerateTerrainMesh() {
 	}
 
 	ProceduralMesh->CreateMeshSection_LinearColor(0, meshData.vertices, meshData.triangles, meshData.normals, meshData.uvs, meshData.vertexColors, meshData.tangents, true);
+
 	// Enable collision data:
 	ProceduralMesh->ContainsPhysicsTriMeshData(true);
+
+	UE_LOG(LogTemp, Warning, TEXT("vertices array size = %d"), meshData.vertices.Num());
 }
 
 
 
 void AGeneratedMesh::UpdateTerrainMesh() {
 
-	/*int32 index = 0;*/
-	int32 meshSimplificationIncrement = levelOfDetail * 2;
+	int32 index = 0;
 
 	// The following if-statements 'clamp' our noiseMap values:
 	if (noiseScale <= 0) { noiseScale = 0.0001f; }
@@ -101,12 +100,12 @@ void AGeneratedMesh::UpdateTerrainMesh() {
 
 	if (weightCurveExponent < 1) { weightCurveExponent = 1.0f; }
 
-	TArray<FArray2D> newNoiseMap = UGenerateNoiseMap::GenerateNoiseMap(mapChunkSize, noiseScale, octaves, persistance, lacunarity);
+	TArray<FArray2D> newNoiseMap = UGenerateNoiseMap::GenerateNoiseMap(mapChunkSize, mapChunkSize, noiseScale, octaves, persistance, lacunarity);
 
 	int32 vertexIndex = 0;
 
-	for (int32 y = 0; y < mapChunkSize; y += meshSimplificationIncrement) {
-		for (int32 x = 0; x < mapChunkSize; x += meshSimplificationIncrement) {
+	for (int32 y = 0; y < mapChunkSize; y++) {
+		for (int32 x = 0; x < mapChunkSize; x++) {
 
 			float newVertexHeight = calculateWeightCurve(newNoiseMap[y].secondArray[x], weightCurveExponent) * heightMultiplier;
 
