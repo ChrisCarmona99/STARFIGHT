@@ -53,8 +53,10 @@ void AGeneratedMesh::GenerateTerrainMesh() {
 	float topLeftX = (mapChunkSize - 1) / -2.f;
 	float topLeftZ = (mapChunkSize - 1) / 2.f;
 
-	// Calculates the increment for mesh LODs:
-	int32 meshSimplificationIncrement = levelOfDetail * 2;
+	// Calculates the increment for mesh LODs (ensures 'levelOfDetail' is NOT 0:
+	int32 meshSimplificationIncrement = levelOfDetail == 0 ? 1 : levelOfDetail * 2;
+	// Calculates correct number of vertices for our 'vertices' array:
+	int32 verticesPerLine = (mapChunkSize - 1) / meshSimplificationIncrement;
 
 	int32 vertexIndex = 0;
 
@@ -64,6 +66,9 @@ void AGeneratedMesh::GenerateTerrainMesh() {
 			float currentVertexHeight = calculateWeightCurve(noiseMap[y].secondArray[x], weightCurveExponent) * heightMultiplier;
 
 			// Add each vertex, uv, normal, tangent, & vertexColor:
+
+			/* CURRENT IDEA : just use the.Add() TArray method to add these first, which will fix our array length issues... 
+			   but KEEP the index counter in the update function since our arrays will already be initialized at that point. */
 			meshData.vertices[vertexIndex] = FVector(topLeftX + x, topLeftZ - y, currentVertexHeight);
 			meshData.uvs[vertexIndex] = FVector2D(x / (float)mapChunkSize, y / (float)mapChunkSize);
 			meshData.normals[vertexIndex] = FVector(1, 0, 0);
@@ -91,7 +96,7 @@ void AGeneratedMesh::GenerateTerrainMesh() {
 void AGeneratedMesh::UpdateTerrainMesh() {
 
 	/*int32 index = 0;*/
-	int32 meshSimplificationIncrement = levelOfDetail * 2;
+	int32 meshSimplificationIncrement = levelOfDetail == 0 ? 1 : levelOfDetail * 2;
 
 	// The following if-statements 'clamp' our noiseMap values:
 	if (noiseScale <= 0) { noiseScale = 0.0001f; }
@@ -118,8 +123,6 @@ void AGeneratedMesh::UpdateTerrainMesh() {
 
 	ProceduralMesh->UpdateMeshSection_LinearColor(0, meshData.vertices, meshData.normals, meshData.uvs, meshData.vertexColors, meshData.tangents);
 	ProceduralMesh->ContainsPhysicsTriMeshData(true);
-
-	
 }
 
 

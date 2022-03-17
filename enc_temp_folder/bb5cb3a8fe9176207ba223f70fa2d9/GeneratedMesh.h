@@ -23,7 +23,9 @@ public:
 		UMaterialInterface* BaseMaterial;
 
 	UPROPERTY()
-		int32 mapChunkSize = 121;
+		int32 mapChunkSize = 121; // NOTE: This value must have factors of 2, 4, 6, 8, 10, & 12 ATLEAST...
+	UPROPERTY()
+		int32 levelOfDetail = 0;
 
 
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
