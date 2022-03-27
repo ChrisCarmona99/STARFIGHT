@@ -17,9 +17,9 @@ struct FGeneratedMeshData {
 	explicit FORCEINLINE FGeneratedMeshData(int32 inputMeshWidth, int32 inputMeshHeight);
 
 	UPROPERTY(BlueprintReadWrite)
-		int32 meshWidth = 4;
+		int32 meshWidth;
 	UPROPERTY(BlueprintReadWrite)
-		int32 meshHeight = 4;
+		int32 meshHeight;
 
 	UPROPERTY(BlueprintReadWrite)
 		TArray<FVector> vertices;
@@ -35,42 +35,25 @@ struct FGeneratedMeshData {
 		TArray<FLinearColor> vertexColors;
 
 	UPROPERTY(BlueprintReadWrite)
+		TArray<FColor> vertexColorsNEW;
+
+	UPROPERTY(BlueprintReadWrite)
 		int32 triangleIndex = 0;
 
 
 	// Add a triangle:
 	void AddTriangle(int32 a, int32 b, int32 c) {
-		/*UE_LOG(LogTemp, Warning, TEXT("triangle index: %d"), triangleIndex);*/
-		triangles[triangleIndex] = a;
-		triangles[triangleIndex + 1] = b;
-		triangles[triangleIndex + 2] = c;
-		triangleIndex += 3;
+		triangles.Add(a);
+		triangles.Add(b);
+		triangles.Add(c);
 	}
-
-
 
 };
 
 // Default Constructor IMPLEMENTATION (not really needed but here for programmatic reasons...):
 FORCEINLINE FGeneratedMeshData::FGeneratedMeshData() {
-
-	vertices.Init(FVector(), meshWidth * meshHeight);
-	uvs.Init(FVector2D(), meshWidth * meshHeight);
-	triangles.Init(int32(), (meshWidth - 1) * (meshHeight - 1) * 6);
-
-	normals.Init(FVector(), meshWidth * meshHeight);
-	tangents.Init(FProcMeshTangent(), meshWidth * meshHeight);
-	vertexColors.Init(FLinearColor(), meshWidth * meshHeight);
 }
 
 // Main Constructor IMPLEMENTATION:
 FORCEINLINE FGeneratedMeshData::FGeneratedMeshData(const int32 inputMeshWidth, const int32 inputMeshHeight) : meshWidth(inputMeshWidth), meshHeight(inputMeshHeight) {
-
-	vertices.Init(FVector(), meshWidth * meshHeight);
-	uvs.Init(FVector2D(), meshWidth * meshHeight);
-	triangles.Init(int32(), (meshWidth - 1) * (meshHeight - 1) * 6);
-
-	normals.Init(FVector(), meshWidth * meshHeight);
-	tangents.Init(FProcMeshTangent(), meshWidth * meshHeight);
-	vertexColors.Init(FLinearColor(), meshWidth * meshHeight);
 }

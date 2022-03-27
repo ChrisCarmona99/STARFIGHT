@@ -21,7 +21,6 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32 mapChunkSize, float n
 	float maxNoiseHeight = 0;
 	float minNoiseHeight = 1;
 
-	
 	for (int y = 0; y < mapChunkSize; y++) {
 		for (int x = 0; x < mapChunkSize; x++) {
 

@@ -23,9 +23,15 @@ public:
 		UMaterialInterface* BaseMaterial;
 
 	UPROPERTY()
-		int32 mapChunkSize = 121; // NOTE: This value must have factors of 2, 4, 6, 8, 10, & 12 ATLEAST...
+		int32 mapChunkSize = 121; // NOTE: This value must have factors of 2, 4, 6, 8, 10, & 12
+	UPROPERTY(EditAnywhere, Category = "Generated Mesh LODS")
+		int32 levelOfDetail = 1;
+
+
+	/*UPROPERTY()
+		TArray<FArray2D> noiseMap;*/
 	UPROPERTY()
-		int32 levelOfDetail = 0;
+		FGeneratedMeshData meshData;
 
 
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
@@ -42,12 +48,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
 		float weightCurveExponent = 6.0f;
 
-
-	UPROPERTY()
-		TArray<FArray2D> noiseMap;
-	UPROPERTY()
-		FGeneratedMeshData meshData;
-	
 
 	// Sets default values for this actor's properties
 	AGeneratedMesh();
@@ -67,7 +67,7 @@ public:
 	void PostActorCreated();
 	void PostLoad();
 
-	void GenerateTerrainMesh(); // GENERATES OUR TERRAIN MESH
+	void GenerateTerrainMesh();
 	void UpdateTerrainMesh();
 
 	float calculateWeightCurve(float vertexHeight, float exponent);

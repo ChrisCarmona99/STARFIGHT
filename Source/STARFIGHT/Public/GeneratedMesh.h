@@ -24,12 +24,9 @@ public:
 
 	UPROPERTY()
 		int32 mapChunkSize = 121; // NOTE: This value must have factors of 2, 4, 6, 8, 10, & 12
-	UPROPERTY()
-		int32 levelOfDetail = 0;
+	UPROPERTY(EditAnywhere, Category = "Generated Mesh LODS")
+		int32 levelOfDetail = 1;
 
-
-	UPROPERTY()
-		TArray<FArray2D> noiseMap;
 	UPROPERTY()
 		FGeneratedMeshData meshData;
 
@@ -67,7 +64,7 @@ public:
 	void PostActorCreated();
 	void PostLoad();
 
-	void GenerateTerrainMesh(); // GENERATES OUR TERRAIN MESH
+	void GenerateTerrainMesh();
 	void UpdateTerrainMesh();
 
 	float calculateWeightCurve(float vertexHeight, float exponent);
