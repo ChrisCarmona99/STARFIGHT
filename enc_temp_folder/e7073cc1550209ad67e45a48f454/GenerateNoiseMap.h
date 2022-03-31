@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Math.h"
-#include "Math/RandomStream.h"
 #include "Engine/Classes/Materials/Material.h"
 
 #include "GenerateNoiseMap.generated.h"
@@ -43,16 +42,16 @@ class STARFIGHT_API UGenerateNoiseMap : public UBlueprintFunctionLibrary {
 
 public:
 	UFUNCTION()
-		static TArray<FArray2D> GenerateNoiseMap(int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaves, float& persistance, float& lacurnarity); // GENERATES OUR NOISE MAP
+		static TArray<FArray2D> GenerateNoiseMap(int32& mapChunkSize, int32& seed, float& noiseScale, int& octaves, float& persistance, float& lacurnarity); // GENERATES OUR NOISE MAP
 
 	UFUNCTION()
-		static TArray<FArray2D> GenerateFalloffMap(int32& mapChunkSize, float& a, float& b, float& c);
+		static TArray<FArray2D> GenerateFalloffMap(int32& mapChunkSize, float& a, float& b, float& c, float& d);
 
 	UFUNCTION()
 		static float InverseLerp(float min, float max, float value);
 
 	UFUNCTION()
-		static float calculateFalloff(float value, float a, float b, float c);
+		static float calculateFalloff(float value, float a, float b, float c, float d);
 	
 	UFUNCTION()
 		static TArray<FArray2D> UpdateNoiseMap(int32 mapChunkSize, float noiseScale); // UPDATES OUR NOISE MAP (in editor)

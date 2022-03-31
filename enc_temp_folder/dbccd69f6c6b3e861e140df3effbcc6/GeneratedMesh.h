@@ -23,30 +23,45 @@ public:
 		UMaterialInterface* BaseMaterial;
 
 	UPROPERTY()
-		int32 mapChunkSize = 121; // NOTE: This value must have factors of 2, 4, 6, 8, 10, & 12
+		int32 MapChunkSize = 121; // 241NOTE: This value - 1 must have factors of 2, 4, 6, 8, 10, & 12
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh LODS")
-		int32 levelOfDetail = 1;
+		int32 LevelOfDetail = 0;
 
-
-	/*UPROPERTY()
-		TArray<FArray2D> noiseMap;*/
 	UPROPERTY()
-		FGeneratedMeshData meshData;
+		FGeneratedMeshData MeshData;
+	UPROPERTY()
+		TArray<FArray2D> NoiseMap;
+	UPROPERTY()
+		TArray<FArray2D> FalloffMap;
+	/*UPROPERTY()
+		TArray<float> NoiseMap;
+	UPROPERTY()
+		TArray<float> FalloffMap;*/
 
+	UPROPERTY()
+		int32 Seed = 1;
+	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
+		float NoiseScale = 27.6f; // 1
+	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
+		int Octaves = 4.0f; // 1
+	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
+		float Persistance = 0.5f; // 0.5
+	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
+		float Lacunarity = 2.0f; // 1
 
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float noiseScale = 20.0f; // 1
+		float HeightMultiplier = 30.0f; // 70.0
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		int octaves = 4.0f; // 1
-	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float persistance = 0.5f; // 0.5
-	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float lacunarity = 1.0f; // 1
+		float WeightCurveExponent = 2.6f;
 
-	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float heightMultiplier = 70.0f; // 1
-	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float weightCurveExponent = 6.0f;
+	UPROPERTY(EditAnywhere, Category = "Noise Map Properties")
+		float A = 1.0f;
+	UPROPERTY(EditAnywhere, Category = "Noise Map Properties")
+		float B = 100.0f;
+	UPROPERTY(EditAnywhere, Category = "Noise Map Properties")
+		float C = 1.7f;
+	UPROPERTY(EditAnywhere, Category = "Noise Map Properties")
+		float D = 0.0f;
 
 
 	// Sets default values for this actor's properties
@@ -67,8 +82,12 @@ public:
 	void PostActorCreated();
 	void PostLoad();
 
-	void GenerateTerrainMesh();
-	void UpdateTerrainMesh();
+	
+	void GenerateTerrainMesh(FGeneratedMeshData& meshData, TArray<FArray2D>& noiseMap, TArray<FArray2D>& falloffMap, int32& mapChunkSize, int32& seed, int32& levelOfDetail, float& noiseScale, int& octaves, float& persistance, float& lacunarity, float& heightMultiplier, float& weightCurveExponent);
+	
+	UFUNCTION()
+		float calculateWeightCurve(float vertexHeight, float exponent);
 
-	float calculateWeightCurve(float vertexHeight, float exponent);
+
+	/*void UpdateTerrainMesh();*/
 };

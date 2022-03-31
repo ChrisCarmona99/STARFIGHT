@@ -48,6 +48,18 @@ struct FGeneratedMeshData {
 		triangles.Add(c);
 	}
 
+	void AddNormal() {
+
+	}
+
+	void ClearData() {
+		vertices.Reset();
+		uvs.Reset();
+		normals.Reset();
+		tangents.Reset();
+		vertexColors.Reset();
+		triangles.Reset();
+	}
 };
 
 // Default Constructor IMPLEMENTATION (not really needed but here for programmatic reasons...):

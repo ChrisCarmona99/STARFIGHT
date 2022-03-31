@@ -4,7 +4,7 @@
 #include "GenerateNoiseMap.h"
 
 
-TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaves, float& persistance, float& lacurnarity) {
+TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32& mapChunkSize, int32& seed, float& noiseScale, int& octaves, float& persistance, float& lacurnarity) {
 
 	TArray<FArray2D> noiseMap;
 	//TArray<float> noiseMap;
@@ -14,17 +14,7 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32& mapChunkSize, int32&
 	for (auto& nestedStruct : noiseMap) { nestedStruct.secondArray.Init(0.0f, mapChunkSize); }
 	
 
-	TArray<FVector2D> octaveOffsets;
-
-	
-	FRandomStream prng = FRandomStream( seed );
-	octaveOffsets.Init(FVector2D(), octaves);
-	for (int32 i = 0; i < octaves; i++) {
-		float offsetX = prng.FRandRange(-100000, 10000) + offset.X;
-		float offsetY = prng.FRandRange(-100000, 10000) + offset.Y;
-		octaveOffsets[i] = FVector2D(offsetX, offsetY);
-	}
-
+	int prng = FMath::RandRange(3, 8);
 
 	if (noiseScale <= 0) {
 		noiseScale = 0.0001f;
@@ -32,9 +22,6 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32& mapChunkSize, int32&
 
 	float maxNoiseHeight = 0;
 	float minNoiseHeight = 1;
-
-	float halfWidth = mapChunkSize / 2.0f;
-	float halfHeight = mapChunkSize / 2.0f;
 
 	for (int y = 0; y < mapChunkSize; y++) {
 		for (int x = 0; x < mapChunkSize; x++) {
@@ -44,8 +31,8 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32& mapChunkSize, int32&
 			float noiseHeight = 0;
 
 			for (int i = 0; i < octaves; i++) {
-				float sampleX = (x - halfWidth) / noiseScale * frequency + octaveOffsets[i].X;
-				float sampleY = (y - halfHeight) / noiseScale * frequency + octaveOffsets[i].Y;
+				float sampleX = x / noiseScale * frequency;
+				float sampleY = y / noiseScale * frequency;
 
 				float perlinValue = FMath::PerlinNoise2D(FVector2D(sampleX, sampleY)) * 2 - 1; // we multiply by '2' then subtract '1' so that our values can be negative!!
 				noiseHeight += perlinValue * amplitude;
@@ -77,7 +64,7 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32& mapChunkSize, int32&
 
 
 
-TArray<FArray2D> UGenerateNoiseMap::GenerateFalloffMap(int32& mapChunkSize, float& a, float& b, float& c) {
+TArray<FArray2D> UGenerateNoiseMap::GenerateFalloffMap(int32& mapChunkSize, float& a, float& b, float& c, float& d) {
 
 	TArray<FArray2D> falloffMap;
 	//TArray<float> falloffMap;
@@ -100,7 +87,7 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateFalloffMap(int32& mapChunkSize, floa
 			// Chooses the greatest coordinate (x OR y) which will denote which one is closer to the center of the terrain grid:
 			float value = FMath::Max(FMath::Abs(x), FMath::Abs(y));
 
-			falloffMap[i].secondArray[j] = calculateFalloff(value, a, b, c);
+			falloffMap[i].secondArray[j] = calculateFalloff(value, a, b, c, d);
 			//falloffMap.Add(calculateFalloff(value));
 		}
 	}
@@ -117,10 +104,10 @@ float UGenerateNoiseMap::InverseLerp(float min, float max, float value) {
 
 
 
-float UGenerateNoiseMap::calculateFalloff(float value, float a, float b, float c) {
+float UGenerateNoiseMap::calculateFalloff(float value, float a, float b, float c, float d) {
 	/*float a = 3.0f;
 	float b = 2.2f;*/
-	float output = (FMath::Pow(value, a) / (c * FMath::Pow(value, a) + FMath::Pow(b - b * value, a)));
+	float output = (FMath::Pow(value, a) / (c * FMath::Pow(value, a) + FMath::Pow(b - b * value, a))) + d;
 	return output;
 }
 
