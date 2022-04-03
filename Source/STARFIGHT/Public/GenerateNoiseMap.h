@@ -54,6 +54,4 @@ public:
 	UFUNCTION()
 		static float calculateFalloff(float value, float a, float b, float c);
 	
-	UFUNCTION()
-		static TArray<FArray2D> UpdateNoiseMap(int32 mapChunkSize, float noiseScale); // UPDATES OUR NOISE MAP (in editor)
 };

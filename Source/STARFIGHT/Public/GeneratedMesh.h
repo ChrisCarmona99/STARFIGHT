@@ -20,7 +20,7 @@ public:
 		UProceduralMeshComponent* ProceduralMesh;
 
 	UPROPERTY()
-		int32 MapChunkSize = 121; // 241NOTE: This value - 1 must have factors of 2, 4, 6, 8, 10, & 12
+		int32 MapChunkSize = 241; // 241NOTE: This value - 1 must have factors of 2, 4, 6, 8, 10, & 12
 	UPROPERTY()
 		FGeneratedMeshData MeshData;
 	UPROPERTY()
@@ -35,7 +35,7 @@ public:
 		int32 LevelOfDetail = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh World Position")
-		int32 Seed = 1;
+		int32 Seed = 1; // 4234545
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh World Position")
 		FVector2D Offset;
 
@@ -44,21 +44,21 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
 		int Octaves = 4.0f; // 1
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float Persistance = 0.5f; // 0.5
+		float Persistance = 0.45f; // 0.5
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float Lacunarity = 2.0f; // 12
+		float Lacunarity = 1.9f; // 12
 
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float HeightMultiplier = 30.0f; // 70.0
+		float HeightMultiplier = 28.0f; // 70.0
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float WeightCurveExponent = 2.6f;
+		float WeightCurveExponent = 3.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Falloff Map Properties")
-		float A = 1.0f;
+		float A = 1.8f;
 	UPROPERTY(EditAnywhere, Category = "Falloff Map Properties")
-		float B = 100.0f;
+		float B = 4.0f;
 	UPROPERTY(EditAnywhere, Category = "Falloff Map Properties")
-		float C = 1.7f;
+		float C = 0.6f;
 
 
 	// Sets default values for this actor's properties
@@ -85,6 +85,4 @@ public:
 	UFUNCTION()
 		float calculateWeightCurve(float vertexHeight, float exponent);
 
-
-	/*void UpdateTerrainMesh();*/
 };

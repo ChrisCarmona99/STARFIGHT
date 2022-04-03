@@ -7,7 +7,6 @@
 TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaves, float& persistance, float& lacurnarity) {
 
 	TArray<FArray2D> noiseMap;
-	//TArray<float> noiseMap;
 
 	// Initialize our noiseMap first with an array of 'FArray2D' structs, then initialize the 'secondArray' of each 'FArray2D' structs with a list of '0.0f'
 	noiseMap.Init(FArray2D(), mapChunkSize);
@@ -80,8 +79,7 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32& mapChunkSize, int32&
 TArray<FArray2D> UGenerateNoiseMap::GenerateFalloffMap(int32& mapChunkSize, float& a, float& b, float& c) {
 
 	TArray<FArray2D> falloffMap;
-	//TArray<float> falloffMap;
-
+	
 	// Initialize our falloffMap first with an array of 'FArray2D' structs, then initialize the 'secondArray' of each 'FArray2D' structs with a list of '0.0f'
 	falloffMap.Init(FArray2D(), mapChunkSize);
 	for (auto& nestedStruct : falloffMap) { nestedStruct.secondArray.Init(0.0f, mapChunkSize); }
@@ -93,15 +91,10 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateFalloffMap(int32& mapChunkSize, floa
 			float x = i / (float)mapChunkSize * 2 - 1;
 			float y = j / (float)mapChunkSize * 2 - 1;
 
-			/*UE_LOG(LogTemp, Warning, TEXT("%s"), " ");
-			UE_LOG(LogTemp, Warning, TEXT(" i = %d  :  j = %d"), i, j);
-			UE_LOG(LogTemp, Warning, TEXT(" X = %f  :  Y = %f"), x, y);*/
-
 			// Chooses the greatest coordinate (x OR y) which will denote which one is closer to the center of the terrain grid:
 			float value = FMath::Max(FMath::Abs(x), FMath::Abs(y));
 
 			falloffMap[i].secondArray[j] = calculateFalloff(value, a, b, c);
-			//falloffMap.Add(calculateFalloff(value));
 		}
 	}
 	//UE_LOG(LogTemp, Warning, TEXT("\n\nWORKING TILL HERE 3\n"));
@@ -120,13 +113,6 @@ float UGenerateNoiseMap::InverseLerp(float min, float max, float value) {
 float UGenerateNoiseMap::calculateFalloff(float value, float a, float b, float c) {
 	/*float a = 3.0f;
 	float b = 2.2f;*/
-	float output = (FMath::Pow(value, a) / (c * FMath::Pow(value, a) + FMath::Pow(b - b * value, a)));
+	float output = (FMath::Pow(value, a) / (c * FMath::Pow(value, a) + FMath::Pow(b - b * value, a)) );
 	return output;
-}
-
-
-
-// CURRENTLY NOT BEING USED:
-TArray<FArray2D> UGenerateNoiseMap::UpdateNoiseMap(int32 mapChunkSize, float noiseScale) {
-	return TArray<FArray2D>();
 }
