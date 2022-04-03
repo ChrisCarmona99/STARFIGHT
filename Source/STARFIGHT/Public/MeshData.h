@@ -31,9 +31,9 @@ struct FGeneratedMeshData {
 		TArray<FVector> normals;
 	UPROPERTY(BlueprintReadWrite)
 		TArray<FProcMeshTangent> tangents;
+
 	UPROPERTY(BlueprintReadWrite)
 		TArray<FLinearColor> vertexColors;
-
 	UPROPERTY(BlueprintReadWrite)
 		TArray<FColor> vertexColorsNEW;
 
@@ -48,10 +48,7 @@ struct FGeneratedMeshData {
 		triangles.Add(c);
 	}
 
-	void AddNormal() {
-
-	}
-
+	// Clear our Mesh Data:
 	void ClearData() {
 		vertices.Reset();
 		uvs.Reset();
