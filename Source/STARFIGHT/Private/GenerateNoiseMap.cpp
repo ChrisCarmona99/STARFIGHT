@@ -103,6 +103,75 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateFalloffMap(int32& mapChunkSize, floa
 
 
 
+FGeneratedMeshData UGenerateNoiseMap::GenerateProceduralMeshData(int32 mapChunkSize, int32 seed, FVector2D offset, int32 levelOfDetail, 
+																float noiseScale, int octaves, float persistance, float lacunarity, float heightMultiplier, 
+																float weightCurveExponent, float a, float b, float c) {
+	
+	FGeneratedMeshData meshData;
+	
+	TArray<FArray2D> noiseMap = UGenerateNoiseMap::GenerateNoiseMap(mapChunkSize, seed, offset, noiseScale, octaves, persistance, lacunarity);
+	TArray<FArray2D> falloffMap = UGenerateNoiseMap::GenerateFalloffMap(mapChunkSize, a, b, c);
+
+
+	// Sets the starting 
+	float topLeftX = (mapChunkSize - 1) / -2.f;
+	float topLeftZ = (mapChunkSize - 1) / 2.f;
+
+	// Calculates the increment for mesh LODs (ensures 'levelOfDetail' is NOT 0):
+	int32 LODincrement = levelOfDetail == 0 ? 1 : levelOfDetail * 2;
+	// Calculates correct number of vertices for our 'vertices' array:
+	int32 verticesPerLine = (mapChunkSize - 1) / LODincrement + 1;
+
+	int32 vertexIndex = 0;
+
+
+	for (int32 y = 0; y < mapChunkSize; y += LODincrement) {
+		for (int32 x = 0; x < mapChunkSize; x += LODincrement) {
+
+			// Implement our Falloff Map:
+			noiseMap[y].secondArray[x] = FMath::Clamp(noiseMap[y].secondArray[x] - falloffMap[y].secondArray[x], 0.0f, 1.0f);
+
+			// Define the height for the current vertex in our iteration:
+			float currentHeight = calculateWeightCurve(noiseMap[y].secondArray[x], weightCurveExponent) * heightMultiplier;
+
+			// Add each vertex, uv, & vertexColor:
+			meshData.vertices.Add(FVector(topLeftX + x, topLeftZ - y, currentHeight)); // SETS [X, Y, Z] FOR EACH VERTEX
+			//meshData.uvs.Add(FVector2D(x / (float)mapChunkSize, y / (float)mapChunkSize));
+			meshData.uvs.Add(FVector2D(x, y));
+			meshData.vertexColorsNEW.Add(FColor(0.50, 0.75, 1.00, 1.0));
+
+			// Check if we are still one vertex away from the bottom and right boundaries:
+			if (x < mapChunkSize - 1 && y < mapChunkSize - 1) {
+				// Add Triangles (two per square tile):
+				meshData.AddTriangle(vertexIndex, vertexIndex + verticesPerLine + 1, vertexIndex + verticesPerLine);
+				meshData.AddTriangle(vertexIndex + verticesPerLine + 1, vertexIndex, vertexIndex + 1);
+
+				// Add Normals:
+				FVector v1 = FVector(1, 0, noiseMap[y].secondArray[x + 1] - noiseMap[y].secondArray[x]);  // (x + 1 - x, y - y, next height - current height)
+				FVector v2 = FVector(0, 1, noiseMap[y + 1].secondArray[x] - noiseMap[y].secondArray[x]);  // (x - x, y + 1 - y, next height - current height)
+				meshData.normals.Add(FVector::CrossProduct(v2, v1));
+
+				// Add Tangents:
+				meshData.tangents.Add(FProcMeshTangent((v2[0] - v1[0]) / 2, (v2[1] - v1[1]) / 2, (v2[2] - v1[2]) / 2));
+
+			}
+
+			vertexIndex++;
+		}
+	}
+
+	return meshData;
+}
+
+
+
+float UGenerateNoiseMap::calculateWeightCurve(float vertexHeight, float exponent) {
+	float output = pow(vertexHeight, exponent);
+	return output;
+}
+
+
+
 float UGenerateNoiseMap::InverseLerp(float min, float max, float value) {
 	float output = (value - min) / (max - min);
 	return output;

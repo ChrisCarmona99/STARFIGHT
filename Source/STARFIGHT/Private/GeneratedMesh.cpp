@@ -11,9 +11,7 @@ AGeneratedMesh::AGeneratedMesh() {
 
 	BaseMaterial = CreateDefaultSubobject<UMaterialInterface>("BaseMaterial");
 
-	MeshData = FGeneratedMeshData(MapChunkSize, MapChunkSize);
-	/*NoiseMap = UGenerateNoiseMap::GenerateNoiseMap(MapChunkSize, Seed, NoiseScale, Octaves, Persistance, Lacunarity, Offset);
-	FalloffMap = UGenerateNoiseMap::GenerateFalloffMap(MapChunkSize, A, B, C, D);*/
+	MeshData_0 = FGeneratedMeshData(MapChunkSize_0, MapChunkSize_0);
 
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false; // ORIGINALY SET TO TRUE
@@ -29,15 +27,17 @@ void AGeneratedMesh::OnConstruction(const FTransform& Transform) {
 	ProceduralMesh->SetMaterial(0, BaseMaterial);
 
 	// Clamp our Noise Values:
-	NoiseScale <= 0 ? NoiseScale = 0.0001f : NoiseScale = NoiseScale;
-	Lacunarity < 1 ? Lacunarity = 1 : Lacunarity = Lacunarity;
-	Octaves < 0 ? Octaves = 0 : Octaves > 7 ? Octaves = 7 : Octaves = Octaves;
-	Persistance < 0 ? Persistance = 0 : Persistance > 1 ? Persistance > 1 : Persistance = Persistance;
-	WeightCurveExponent < 1 ? WeightCurveExponent = 1.0f : WeightCurveExponent = WeightCurveExponent;
+	NoiseScale_0 <= 0 ? NoiseScale_0 = 0.0001f : NoiseScale_0 = NoiseScale_0;
+	Lacunarity_0 < 1 ? Lacunarity_0 = 1 : Lacunarity_0 = Lacunarity_0;
+	Octaves_0 < 0 ? Octaves_0 = 0 : Octaves_0 > 7 ? Octaves_0 = 7 : Octaves_0 = Octaves_0;
+	Persistance_0 < 0 ? Persistance_0 = 0 : Persistance_0 > 1 ? Persistance_0 > 1 : Persistance_0 = Persistance_0;
+	WeightCurveExponent_0 < 1 ? WeightCurveExponent_0 = 1.0f : WeightCurveExponent_0 = WeightCurveExponent_0;
 	// Clamp our Level of Detail Value:
-	LevelOfDetail < 0 ? LevelOfDetail = 0 : LevelOfDetail > 6 ? LevelOfDetail = 6 : LevelOfDetail = LevelOfDetail;
+	LevelOfDetail_0 < 0 ? LevelOfDetail_0 = 0 : LevelOfDetail_0 > 6 ? LevelOfDetail_0 = 6 : LevelOfDetail_0 = LevelOfDetail_0;
 
-	GenerateTerrainMesh(MeshData, NoiseMap, FalloffMap, MapChunkSize, Seed, Offset, LevelOfDetail, NoiseScale, Octaves, Persistance, Lacunarity, HeightMultiplier, WeightCurveExponent, A, B, C);
+	//GenerateTerrainMesh(MeshData, NoiseMap, FalloffMap, MapChunkSize, Seed, Offset, LevelOfDetail, NoiseScale, Octaves, Persistance, Lacunarity, HeightMultiplier, WeightCurveExponent, A, B, C);
+	ConstructProceduralTerrainMesh(MeshData_0, NoiseMap_0, FalloffMap_0, MapChunkSize_0, Seed_0, Offset_0, LevelOfDetail_0, NoiseScale_0, Octaves_0, Persistance_0, Lacunarity_0, HeightMultiplier_0, WeightCurveExponent_0, A_0, B_0, C_0);
+
 }
 
 // Called every frame
@@ -48,7 +48,6 @@ void AGeneratedMesh::Tick(float DeltaTime) {
 // Called when 'GeneratedMesh' is spawned (at runtime or when you drop it into the world in editor)
 void AGeneratedMesh::PostActorCreated() {
 	Super::PostActorCreated();
-	//GenerateTerrainMesh(MeshData, MapChunkSize, LevelOfDetail, NoiseScale, Octaves, Persistance, Lacunarity, HeightMultiplier, WeightCurveExponent);
 }
 
 // Called when 'GeneratedMesh' is already in level and map is opened
@@ -56,8 +55,7 @@ void AGeneratedMesh::PostLoad() {
 	Super::PostLoad();
 }
 
-void AGeneratedMesh::GenerateTerrainMesh(FGeneratedMeshData& meshData, TArray<FArray2D>& noiseMap, TArray<FArray2D>& falloffMap, int32& mapChunkSize, int32& seed, FVector2D& offset, int32& levelOfDetail, float& noiseScale, int& octaves, float& persistance, float& lacunarity, float& heightMultiplier, float& weightCurveExponent, float& a, float&b, float&c) {
-	//UE_LOG(LogTemp, Warning, TEXT("\n\nGenerateTerrainMesh CALLED:\n"));
+void AGeneratedMesh::ConstructProceduralTerrainMesh(FGeneratedMeshData& meshData, TArray<FArray2D>& noiseMap, TArray<FArray2D>& falloffMap, int32& mapChunkSize, int32& seed, FVector2D& offset, int32& levelOfDetail, float& noiseScale, int& octaves, float& persistance, float& lacunarity, float& heightMultiplier, float& weightCurveExponent, float& a, float&b, float&c) {
 
 	noiseMap = UGenerateNoiseMap::GenerateNoiseMap(mapChunkSize, seed, offset, noiseScale, octaves, persistance, lacunarity);
 	falloffMap = UGenerateNoiseMap::GenerateFalloffMap(mapChunkSize, a, b, c);
@@ -105,6 +103,7 @@ void AGeneratedMesh::GenerateTerrainMesh(FGeneratedMeshData& meshData, TArray<FA
 
 				// Add Tangents:
 				meshData.tangents.Add(FProcMeshTangent( (v2[0] - v1[0]) / 2, (v2[1] - v1[1]) / 2, (v2[2] - v1[2]) / 2) );
+				
 			}
 			
 			vertexIndex++;

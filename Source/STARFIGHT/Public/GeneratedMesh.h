@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Math.h"
-#include "MeshData.h"
+//#include "MeshData.h"
 #include "GenerateNoiseMap.h"
 
 #include "GeneratedMesh.generated.h"
@@ -20,45 +20,45 @@ public:
 		UProceduralMeshComponent* ProceduralMesh;
 
 	UPROPERTY()
-		int32 MapChunkSize = 241; // 241NOTE: This value - 1 must have factors of 2, 4, 6, 8, 10, & 12
+		int32 MapChunkSize_0 = 241; // 241NOTE: This value - 1 must have factors of 2, 4, 6, 8, 10, & 12
 	UPROPERTY()
-		FGeneratedMeshData MeshData;
+		FGeneratedMeshData MeshData_0;
 	UPROPERTY()
-		TArray<FArray2D> NoiseMap;
+		TArray<FArray2D> NoiseMap_0;
 	UPROPERTY()
-		TArray<FArray2D> FalloffMap;
+		TArray<FArray2D> FalloffMap_0;
 
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Material")
 		UMaterialInterface* BaseMaterial;
 	
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh LODS")
-		int32 LevelOfDetail = 0;
+		int32 LevelOfDetail_0 = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh World Position")
-		int32 Seed = 1; // 4234545
+		int32 Seed_0 = 1; // 4234545
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh World Position")
-		FVector2D Offset;
+		FVector2D Offset_0;
 
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float NoiseScale = 27.6f; // 1
+		float NoiseScale_0 = 27.6f; // 1
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		int Octaves = 4.0f; // 1
+		int Octaves_0 = 4.0f; // 1
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float Persistance = 0.45f; // 0.5
+		float Persistance_0 = 0.45f; // 0.5
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float Lacunarity = 1.9f; // 12
+		float Lacunarity_0 = 1.9f; // 12
 
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float HeightMultiplier = 28.0f; // 70.0
+		float HeightMultiplier_0 = 28.0f; // 70.0
 	UPROPERTY(EditAnywhere, Category = "Generated Mesh Properties")
-		float WeightCurveExponent = 3.0f;
+		float WeightCurveExponent_0 = 3.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Falloff Map Properties")
-		float A = 1.8f;
+		float A_0 = 1.8f;
 	UPROPERTY(EditAnywhere, Category = "Falloff Map Properties")
-		float B = 4.0f;
+		float B_0 = 4.0f;
 	UPROPERTY(EditAnywhere, Category = "Falloff Map Properties")
-		float C = 0.6f;
+		float C_0 = 0.6f;
 
 
 	// Sets default values for this actor's properties
@@ -79,8 +79,9 @@ public:
 	void PostActorCreated();
 	void PostLoad();
 
-	
-	void GenerateTerrainMesh(FGeneratedMeshData& meshData, TArray<FArray2D>& noiseMap, TArray<FArray2D>& falloffMap, int32& mapChunkSize, int32& seed, FVector2D& offset, int32& levelOfDetail, float& noiseScale, int& octaves, float& persistance, float& lacunarity, float& heightMultiplier, float& weightCurveExponent, float& a, float& b, float& c);
+	UFUNCTION(BlueprintCallable)
+		void ConstructProceduralTerrainMesh(FGeneratedMeshData& meshData, TArray<FArray2D>& noiseMap, TArray<FArray2D>& falloffMap, int32& mapChunkSize, int32& seed, FVector2D& offset, int32& levelOfDetail, float& noiseScale, int& octaves, float& persistance, float& lacunarity, float& heightMultiplier, float& weightCurveExponent, float& a, float& b, float& c);
+
 	
 	UFUNCTION()
 		float calculateWeightCurve(float vertexHeight, float exponent);
