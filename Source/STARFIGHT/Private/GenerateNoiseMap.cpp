@@ -133,7 +133,7 @@ FGeneratedMeshData UGenerateNoiseMap::GenerateProceduralMeshData(int32 mapChunkS
 
 			// Define the height for the current vertex in our iteration:
 			float currentHeight = calculateWeightCurve(noiseMap[y].secondArray[x], weightCurveExponent) * heightMultiplier;
-
+			 
 			// Add each vertex, uv, & vertexColor:
 			meshData.vertices.Add(FVector(topLeftX + x, topLeftZ - y, currentHeight)); // SETS [X, Y, Z] FOR EACH VERTEX
 			//meshData.uvs.Add(FVector2D(x / (float)mapChunkSize, y / (float)mapChunkSize));
@@ -147,12 +147,17 @@ FGeneratedMeshData UGenerateNoiseMap::GenerateProceduralMeshData(int32 mapChunkS
 				meshData.AddTriangle(vertexIndex + verticesPerLine + 1, vertexIndex, vertexIndex + 1);
 
 				// Add Normals:
-				FVector v1 = FVector(1, 0, noiseMap[y].secondArray[x + 1] - noiseMap[y].secondArray[x]);  // (x + 1 - x, y - y, next height - current height)
-				FVector v2 = FVector(0, 1, noiseMap[y + 1].secondArray[x] - noiseMap[y].secondArray[x]);  // (x - x, y + 1 - y, next height - current height)
-				meshData.normals.Add(FVector::CrossProduct(v2, v1));
+				FVector v1 = FVector(1.0f, 0.0f, noiseMap[y].secondArray[x + 1] - noiseMap[y].secondArray[x]);  // (x + 1 - x, y - y, next height - current height)
+				FVector v2 = FVector(0.0f, 1.0f, noiseMap[y + 1].secondArray[x] - noiseMap[y].secondArray[x]);  // (x - x, y + 1 - y, next height - current height)
+				FVector newNormal = FVector::CrossProduct(v2, v1);
+				meshData.normals.Add(newNormal);
+
+				float magnitude = (FMath::Sqrt((v2[0] + v1[0]) / 2 + (v2[1] + v1[1]) / 2 + (v2[2] + v1[2]) / 2));
+				//UE_LOG(LogTemp, Warning, TEXT("magnitude = %d   :   NEW TANGENT  =  (%d, %d, %d)"), magnitude, (v2[0] + v1[0]) / (2), (v2[1] + v1[1]) / (2), (v2[2] + v1[2]) / (2 * magnitude) );
+				
 
 				// Add Tangents:
-				meshData.tangents.Add(FProcMeshTangent((v2[0] - v1[0]) / 2, (v2[1] - v1[1]) / 2, (v2[2] - v1[2]) / 2));
+				meshData.tangents.Add(FProcMeshTangent( (v2[0] + v1[0]) / (2), (v2[1] + v1[1]) / (2), (v2[2] + v1[2]) / (2 * magnitude) ));
 
 			}
 
