@@ -92,7 +92,8 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateFalloffMap(int32& mapChunkSize, floa
 			float y = j / (float)mapChunkSize * 2 - 1;
 
 			// Chooses the greatest coordinate (x OR y) which will denote which one is closer to the center of the terrain grid:
-			float value = FMath::Max(FMath::Abs(x), FMath::Abs(y));
+			//float value = FMath::Max(FMath::Abs(x), FMath::Abs(y));
+			float value = FMath::Sqrt(FMath::Pow(x, 2) + FMath::Pow(y, 2));
 
 			falloffMap[i].secondArray[j] = calculateFalloff(value, a, b, c);
 		}
