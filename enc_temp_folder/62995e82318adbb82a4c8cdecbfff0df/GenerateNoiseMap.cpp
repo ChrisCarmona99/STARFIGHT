@@ -171,10 +171,6 @@ FGeneratedMeshData UGenerateNoiseMap::GenerateProceduralMeshData(int32 mapChunkS
 
 
 
-
-
-
-
 bool UGenerateNoiseMap::calculateSlopeAvailability(float maxSlope, float minSlope, FVector inputNormal) {
 
 	bool result;
@@ -188,15 +184,6 @@ bool UGenerateNoiseMap::calculateSlopeAvailability(float maxSlope, float minSlop
 }
 
 
-
-bool UGenerateNoiseMap::calculateHeightAvailability(float maxHeight, float minHeight, FVector spawnLocation) {
-
-	bool result;
-
-	(minHeight <= spawnLocation.Z && spawnLocation.Z <= maxHeight) ? result = true : result = false;
-	
-	return result;
-}
 
 
 
