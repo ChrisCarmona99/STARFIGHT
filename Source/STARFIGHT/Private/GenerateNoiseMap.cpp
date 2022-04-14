@@ -170,8 +170,22 @@ FGeneratedMeshData UGenerateNoiseMap::GenerateProceduralMeshData(int32 mapChunkS
 }
 
 
+// CURRENLTY NOT IN USE:
+FTransform UGenerateNoiseMap::calculateWorldTransform(FVector location, FVector normal, float maxTilt, float maxRotation, FRandomStream seed) {
+	
+	FTransform result, alignedTransform, nonAlignedTransform;
+
+	// Aligned to Normal Code:
+	alignedTransform.SetLocation(location);
+	alignedTransform.SetScale3D(FVector(0.0f, 0.0f, 0.0f));
 
 
+	// Non-Aligned to Normal Code:
+	nonAlignedTransform.SetLocation(location);
+	nonAlignedTransform.SetScale3D(FVector(0.0f, 0.0f, 0.0f));
+
+	return result;
+}
 
 
 

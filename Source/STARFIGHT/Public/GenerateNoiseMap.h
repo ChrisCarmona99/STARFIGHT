@@ -53,8 +53,8 @@ public:
 	UFUNCTION(BlueprintCallable)
 		static FGeneratedMeshData GenerateProceduralMeshData(int32 mapChunkSize, int32 seed, FVector2D offset, int32 levelOfDetail, float noiseScale, int octaves, float persistance, float lacunarity, float heightMultiplier, float weightCurveExponent, float a, float b, float c);
 	
-	UFUNCTION()
-		static FTransform calculateWorldTransform();
+	UFUNCTION(BlueprintCallable)
+		static FTransform calculateWorldTransform(FVector location, FVector normal, float maxTilt, float maxRotation, FRandomStream seed);
 
 	UFUNCTION(BlueprintCallable)
 		static bool calculateSlopeAvailability(float maxSlope, float minSlope, FVector inputNormal);
