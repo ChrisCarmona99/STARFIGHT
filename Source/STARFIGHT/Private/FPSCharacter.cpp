@@ -5,6 +5,7 @@
 #include "Camera/CameraComponent.h"
 
 #include "Weapon.h"
+#include "Runtime/Engine/Classes/Kismet/KismetMathLibrary.h"
 
 // Sets default values
 AFPSCharacter::AFPSCharacter()
@@ -279,6 +280,23 @@ void AFPSCharacter::EquipWeapon(const int32 Index)
 	{
 		Server_SetCurrentWeapon(Weapons[Index]);
 	}
+}
+
+void AFPSCharacter::DropWeapon()
+{
+
+}
+
+FTransform AFPSCharacter::GetPickupSpawn()
+{
+	FTransform output;
+
+	FVector OutLocation;
+	FRotator OutRotation;
+	GetController()->GetActorEyesViewPoint(OutLocation, OutRotation);
+	
+	output.SetLocation(OutLocation + (UKismetMathLibrary::GetForwardVector(OutRotation) * 200));
+	return output;
 }
 
 

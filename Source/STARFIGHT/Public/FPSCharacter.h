@@ -60,8 +60,8 @@ public:
 
 protected:
 	// An array containing a client character's weapons:
-	/*UPROPERTY(EditDefaultsOnly, Category = "Configurations")
-		TArray<TSubclassOf<class AWeapon>> DefaultWeapons;*/
+	//UPROPERTY(EditDefaultsOnly, Category = "Configurations")
+	//	TArray<TSubclassOf<class AWeapon>> DefaultWeapons;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configurations")
 		TArray<TSubclassOf<class AWeapon>> DefaultWeapons;
 
@@ -74,7 +74,6 @@ public:
 
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "State")
 	//	TArray<TSubclassOf<class AWeapon>*> Weapons; // An Array of all the possible weapons our character can hold... as an array of weapon references which are replicated 
-
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, ReplicatedUsing = OnRep_CurrentWeapon, Category = "State")
 	//	class TSubclassOf<class AWeapon>* CurrentWeapon;
 
@@ -118,6 +117,11 @@ public:
 		virtual void EquipWeapon(const int32 Index);
 	
 
+	UFUNCTION(BlueprintCallable, Category = "Character")
+		virtual void DropWeapon();
+	UFUNCTION(BlueprintCallable, Category = "Character")
+		virtual FTransform GetPickupSpawn();
+
 
 
 
@@ -126,11 +130,8 @@ public:
 
 
 protected:
-
-	// BACKUP:
 	/*
-	* When we switch weapons, 'OldWeapon' will be a reference to the previous weapon we just had equiped, 
-	* and because it is replicated, will have the currnt weapon as well:
+	* When we switch weapons, 'OldWeapon' will be a reference to the previous weapon we just had equiped, and because it is replicated, will have the currnt weapon as well:
 	*/
 	UFUNCTION()
 		virtual void OnRep_CurrentWeapon(const class AWeapon* OldWeapon);
@@ -152,7 +153,6 @@ protected:
 	//*/
 	//UFUNCTION()
 	//	virtual void OnRep_CurrentWeapon(const class TSubclassOf<class AWeapon>* OldWeapon);
-
 	///*
 	//* The following function is an RPC call for our server to update the owner player's current weapon to all of the other clients
 	//* NOTE: An RPC is a function that is called on a client to run on the server with the intention of updating a variable that calling client wants to update,
@@ -215,16 +215,8 @@ protected:
 
 
 
-
-
-
-
-
-
-
 	UFUNCTION()
 		virtual void TimelineProgress(const float Value);
-
 
 
 
