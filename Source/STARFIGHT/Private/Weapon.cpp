@@ -5,7 +5,6 @@
 
 
 
-
 // Sets default values
 AWeapon::AWeapon()
 {
@@ -17,8 +16,8 @@ AWeapon::AWeapon()
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	RootComponent = Root;
 
-	Mesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Mesh"));
-	Mesh->SetupAttachment(Root);
+	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
+	WeaponMesh->SetupAttachment(Root);
 
 	// Preset all of our base weapon stats:
 	CurrentClip = 30;
@@ -40,9 +39,9 @@ void AWeapon::BeginPlay()
 	*  We will first spawn our weapon on the server, which will then replicate the spawned weapon to the client,
 	*  and then if it is equiped, then it will be visible to the player / other connected players:
 	*/
-	if (!CurrentOwner) { // Only call if the 'CurrentOwner' is not set...
-		Mesh->SetVisibility(false); // ... so, this will only apply if it's our initial equiped weapon
-	}
+	// if (!CurrentOwner) { // Only call if the 'CurrentOwner' is not set...
+	// 	WeaponMesh->SetVisibility(false); // ... so, this will only apply if it's our initial equiped weapon
+	// }
 	
 }
 
@@ -114,4 +113,3 @@ void AWeapon::Base_AddAmmo(int32 AddedAmmo)
 	int32 NewReserves = Reserves + AddedAmmo;
 	NewReserves > MaxReserves ? Reserves = MaxReserves : Reserves = NewReserves;
 }
-

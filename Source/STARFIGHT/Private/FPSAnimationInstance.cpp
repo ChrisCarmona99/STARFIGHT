@@ -15,7 +15,7 @@ UFPSAnimationInstance::UFPSAnimationInstance() {}
 void UFPSAnimationInstance::NativeBeginPlay()
 {
 	Super::NativeBeginPlay();
-
+	// *** OLD... LEAVE COMMENTED *** :
 	/*
 	Character = Cast<AFPSCharacter>(TryGetPawnOwner());
 	if (Character) { // If character is valid, set up all the other references:
@@ -31,24 +31,24 @@ void UFPSAnimationInstance::NativeBeginPlay()
 // This is our 'Tick' function (This functions are called every single frame!):
 void UFPSAnimationInstance::NativeUpdateAnimation(float DeltaTime)
 {
-	Super::NativeUpdateAnimation(DeltaTime);
+	//Super::NativeUpdateAnimation(DeltaTime);
 
-	if (!Character) // If character valid... keep trying to set Character until it IS valid:
-	{ 
-		Character = Cast<AFPSCharacter>(TryGetPawnOwner());
-		if (Character) // Once the character is finally valid:
-		{ 
-			Mesh = Character->GetMesh();
-			Character->CurrentWeaponChangedDelegate.AddDynamic(this, &UFPSAnimationInstance::CurrentWeaponChanged);
-			CurrentWeaponChanged(Character->CurrentWeapon, nullptr); // Initialize our character to have the current weapon and no previous weapon ('PreviousWeapon' set to 'nullptr')
-		}
-		else return;
-	}
+	//if (!Character) // If character valid... keep trying to set Character until it IS valid:
+	//{ 
+	//	Character = Cast<AFPSCharacter>(TryGetPawnOwner());
+	//	if (Character) // Once the character is finally valid:
+	//	{ 
+	//		Mesh = Character->GetMesh();
+	//		Character->CurrentWeaponChangedDelegate.AddDynamic(this, &UFPSAnimationInstance::CurrentWeaponChanged);
+	//		CurrentWeaponChanged(Character->CurrentWeapon, nullptr); // Initialize our character to have the current weapon and no previous weapon ('PreviousWeapon' set to 'nullptr')
+	//	}
+	//	else return;
+	//}
 
-	SetVars(DeltaTime);
-	CalculateWeaponSway(DeltaTime);
+	//SetVars(DeltaTime);
+	//CalculateWeaponSway(DeltaTime);
 
-	LastRotation = CameraTransform.Rotator();
+	//LastRotation = CameraTransform.Rotator();
 }
 
 

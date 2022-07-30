@@ -7,12 +7,12 @@
 #include "Weapon.h"
 #include "Runtime/Engine/Classes/Kismet/KismetMathLibrary.h"
 
-// Sets default values
+// CONSTRUCTOR
 AFPSCharacter::AFPSCharacter()
 {
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
-
+	
 	
 
 	GetMesh()->SetTickGroup(ETickingGroup::TG_PostUpdateWork); // Fixes latency issues with the camera (Renders the camera at the last tick so that everything can be positioned first):
@@ -43,63 +43,13 @@ AFPSCharacter::AFPSCharacter()
 
 
 // Called when the game starts or when spawned:
-
-//// Modified BeginPlay (Currently not working):
-//void AFPSCharacter::BeginPlay()
-//{
-//	Super::BeginPlay();
-//
-//	// Setup ADS timeline:
-//	if (AimingCurve) // Check if we have an aiming curve:
-//	{
-//		FOnTimelineFloat TimelineFloat;
-//		TimelineFloat.BindDynamic(this, &AFPSCharacter::TimelineProgress);
-//
-//		AimingTimeline.AddInterpFloat(AimingCurve, TimelineFloat);
-//	}
-//
-//
-//	// Client Mesh Logic:
-//	if (IsLocallyControlled()) // Check if we are the owner of the current pawn... if so, Make the head on our client mesh!
-//	{
-//		ClientMesh->HideBoneByName(FName("neck_01"), EPhysBodyOp::PBO_None);
-//		GetMesh()->SetVisibility(false);
-//	}
-//	else // If Not... delete our 'ClientMesh' component (since we don't need it, we will just see the other player's main mesh)
-//	{
-//		ClientMesh->DestroyComponent();
-//	}
-//
-//	// Spawning weapons:
-//	if (HasAuthority())
-//	{
-//		for (const TSubclassOf<AWeapon>& WeaponClassREF : DefaultWeapons) // Loop over each weapon in our 'DefaultWeapons' array
-//		{
-//			if (!WeaponClassREF) continue; // If Weapon Class isn't valid, skip over that iteration!
-//			FActorSpawnParameters Params;
-//			Params.Owner = this;
-//			TSubclassOf<class AWeapon>* SpawnedWeapon = GetWorld()->SpawnActor<TSubclassOf<class AWeapon>>(WeaponClassREF, Params); // 'SpawnedWeapon' = The current weapon in our 'DefaultWeapons' array
-//			const int32 Index = Weapons.Add(SpawnedWeapon); // 'Index' = the index reference
-//
-//			if (Index == CurrentIndex)
-//			{
-//				CurrentWeapon = SpawnedWeapon;
-//				OnRep_CurrentWeapon(nullptr);  // This just sets our previous weapon to nothing (using nullptr), and is replicated to the server
-//			}
-//		}
-//	}
-//
-//}
-
-
-// BACKUP:
 void AFPSCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
 	// Setup ADS timeline:
 	if (AimingCurve) // Check if we have an aiming curve:
-	{ 
+	{
 		FOnTimelineFloat TimelineFloat;
 		TimelineFloat.BindDynamic(this, &AFPSCharacter::TimelineProgress);
 
@@ -118,24 +68,24 @@ void AFPSCharacter::BeginPlay()
 		ClientMesh->DestroyComponent();
 	}
 
-	// Spawning weapons:
-	if (HasAuthority()) 
-	{
-		for (const TSubclassOf<AWeapon>& WeaponClass : DefaultWeapons) // Loop over each weapon in our 'DefaultWeapons' array
-		{ 
-			if (!WeaponClass) continue; // If Weapon Class isn't valid, skip over that iteration!
-			FActorSpawnParameters Params;
-			Params.Owner = this;
-			AWeapon* SpawnedWeapon = GetWorld()->SpawnActor<AWeapon>(WeaponClass, Params); // 'SpawnedWeapon' = The current weapon in our 'DefaultWeapons' array
-			const int32 Index = Weapons.Add(SpawnedWeapon); // 'Index' = the index reference
-			
-			if (Index == CurrentIndex) 
-			{
-				CurrentWeapon = SpawnedWeapon;
-				OnRep_CurrentWeapon(nullptr);  // This just sets our previous weapon to nothing (using nullptr), and is replicated to the server
-			}
-		}
-	}
+	//// Spawning weapons:
+	//if (HasAuthority()) 
+	//{
+	//	for (const TSubclassOf<AWeapon>& WeaponClass : DefaultWeapons) // Loop over each weapon in our 'DefaultWeapons' array
+	//	{ 
+	//		if (!WeaponClass) continue; // If Weapon Class isn't valid, skip over that iteration!
+	//		FActorSpawnParameters SpawnParams;
+	//		SpawnParams.Owner = this;
+	//		AWeapon* SpawnedWeapon = GetWorld()->SpawnActor<AWeapon>(WeaponClass, SpawnParams); // 'SpawnedWeapon' = The current weapon in our 'DefaultWeapons' array
+	//		const int32 Index = Weapons.Add(SpawnedWeapon); // 'Index' = the index reference
+	//		
+	//		if (Index == CurrentIndex) 
+	//		{
+	//			CurrentWeapon = SpawnedWeapon;
+	//			OnRep_CurrentWeapon(nullptr);  // This just sets our previous weapon to nothing (using nullptr), and is replicated to the server
+	//		}
+	//	}
+	//}
 	
 }
 
@@ -153,14 +103,17 @@ void AFPSCharacter::Tick(const float DeltaTime)
 	AimingTimeline.TickTimeline(DeltaTime); // This makes it so the track in our Timeline Curve will actually run
 }
 
+
+
 // Network/Server Functions:
 void AFPSCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	// Set these variables to replicate on the server (NOTE: We are using the 'DOREPLIFETIME' that includes a condition... we don't need this but we are doing it anyways cause why not :) ... at least for now ):
-	DOREPLIFETIME_CONDITION(AFPSCharacter, Weapons, COND_None);
-	DOREPLIFETIME_CONDITION(AFPSCharacter, CurrentWeapon, COND_None);
+	
+	/*DOREPLIFETIME_CONDITION(AFPSCharacter, Weapons, COND_None);
+	DOREPLIFETIME_CONDITION(AFPSCharacter, CurrentWeapon, COND_None);*/
 	DOREPLIFETIME_CONDITION(AFPSCharacter, ADSWeight, COND_None);
 
 	DOREPLIFETIME_CONDITION(AFPSCharacter, Health, COND_None);
@@ -185,8 +138,8 @@ void AFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 	PlayerInputComponent->BindAction(FName("AimDownSights"), EInputEvent::IE_Pressed, this, &AFPSCharacter::StartAiming);
 	PlayerInputComponent->BindAction(FName("AimDownSights"), EInputEvent::IE_Released, this, &AFPSCharacter::ReverseAiming);
 
-	PlayerInputComponent->BindAction(FName("NextWeapon"), EInputEvent::IE_Pressed, this, &AFPSCharacter::NextWeapon);
-	PlayerInputComponent->BindAction(FName("PreviousWeapon"), EInputEvent::IE_Pressed, this, &AFPSCharacter::PreviousWeapon);
+	/*PlayerInputComponent->BindAction(FName("NextWeapon"), EInputEvent::IE_Pressed, this, &AFPSCharacter::NextWeapon);
+	PlayerInputComponent->BindAction(FName("PreviousWeapon"), EInputEvent::IE_Pressed, this, &AFPSCharacter::PreviousWeapon);*/
 
 	// Bind our Movement Functions to our FPSCharacter:
 	PlayerInputComponent->BindAxis(FName("MoveForward"), this, &AFPSCharacter::MoveForward);
@@ -204,13 +157,6 @@ void AFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 
 
 
-
-
-
-
-
-
-//   MODIFIED (currently not working):
 //void AFPSCharacter::EquipWeapon(const int32 Index)
 //{
 //	if (!Weapons.IsValidIndex(Index) || CurrentWeapon == Weapons[Index]) return;// First check if the current index is actually a valid index OR if the next weapon is the same weapon we currently have equipped, if not, return & exit the function, if it is, then continue!
@@ -219,7 +165,7 @@ void AFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 //	{
 //		CurrentIndex = Index; // Just set our 'CurrentIndex' variable to the new 'Index' passed in
 //
-//		const TSubclassOf<class AWeapon>* OldWeaponREF = CurrentWeapon; // Get a reference to the previously equiped weapon
+//		const AWeapon* OldWeaponREF = CurrentWeapon; // Get a reference to the previously equiped weapon
 //		CurrentWeapon = Weapons[Index]; // Assign weapon to the gun at our specified index
 //		OnRep_CurrentWeapon(OldWeaponREF);
 //	}
@@ -229,111 +175,69 @@ void AFPSCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompon
 //		Server_SetCurrentWeapon(Weapons[Index]);
 //	}
 //}
-//
-//void AFPSCharacter::OnRep_CurrentWeapon(const TSubclassOf<class AWeapon>* OldWeapon)
+
+
+
+//void AFPSCharacter::DropWeapon()
 //{
-//	if (CurrentWeapon)
+//	if (HasAuthority()) 
 //	{
-//		if (!CurrentWeapon->GetDefaultObject()->CurrentOwner) // Checks if there IS a 'CurrentOwner' for the 'CurrentWeapon'
-//		{
-//			const FTransform& PlacementTransform = CurrentWeapon->GetDefaultObject()->PlacementTransform * GetMesh()->GetSocketTransform(FName("weapon_socket_r"));
-//			CurrentWeapon->GetDefaultObject()->SetActorTransform(PlacementTransform, false, nullptr, ETeleportType::TeleportPhysics);
-//			CurrentWeapon->GetDefaultObject()->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepWorldTransform, FName("weapon_socket_r"));
 //
-//			CurrentWeapon->GetDefaultObject()->CurrentOwner = this; // Set the owner of the current weapon to ourselves
+//	}
+//}
+
+
+
+//FTransform AFPSCharacter::GetPickupSpawn()
+//{
+//	FTransform output;
+//
+//	FVector OutLocation;
+//	FRotator OutRotation;
+//	GetController()->GetActorEyesViewPoint(OutLocation, OutRotation);
+//	
+//	output.SetLocation(OutLocation + (UKismetMathLibrary::GetForwardVector(OutRotation) * 200));
+//
+//
+//	return output;
+//}
+
+
+
+//void AFPSCharacter::OnRep_CurrentWeapon(const AWeapon* OldWeapon) 
+//{
+//	if (CurrentWeapon) 
+//	{
+//		if(!CurrentWeapon->CurrentOwner) // Checks if there IS a 'CurrentOwner' for the 'CurrentWeapon'
+//		{ 
+//			const FTransform& PlacementTransform = CurrentWeapon->PlacementTransform * GetMesh()->GetSocketTransform(FName("weapon_socket_r"));
+//			CurrentWeapon->SetActorTransform(PlacementTransform, false, nullptr, ETeleportType::TeleportPhysics);
+//			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepWorldTransform, FName("weapon_socket_r"));
+//
+//			CurrentWeapon->CurrentOwner = this; // Set the owner of the current weapon to ourselves
 //		}
 //
-//		CurrentWeapon->GetDefaultObject()->Mesh->SetVisibility(true);
+//		CurrentWeapon->Mesh->SetVisibility(true);
 //	}
 //
-//	if (OldWeapon)
+//	if (OldWeapon) 
 //	{
-//		OldWeapon->GetDefaultObject()->Mesh->SetVisibility(false);
+//		OldWeapon->Mesh->SetVisibility(false);
 //	}
 //
 //	// Broadcast our Delegate function made in Vid #2:
 //	CurrentWeaponChangedDelegate.Broadcast(CurrentWeapon, OldWeapon);
 //}
 //
-//void AFPSCharacter::Server_SetCurrentWeapon_Implementation(TSubclassOf<class AWeapon>* NewWeapon)
+//
+//
+//void AFPSCharacter::Server_SetCurrentWeapon_Implementation(AWeapon* NewWeapon) 
 //{
-//	const TSubclassOf<class AWeapon>* OldWeaponREF = CurrentWeapon; // Get a reference to the previously equiped weapon
+//	const AWeapon* OldWeaponREF = CurrentWeapon; // Get a reference to the previously equiped weapon
 //	CurrentWeapon = NewWeapon; // The 'Weapon' passed in will be the previously equipped weapon
 //	OnRep_CurrentWeapon(OldWeaponREF);
 //}
 
-// BACKUP:
-void AFPSCharacter::EquipWeapon(const int32 Index)
-{
-	if (!Weapons.IsValidIndex(Index) || CurrentWeapon == Weapons[Index]) return;// First check if the current index is actually a valid index OR if the next weapon is the same weapon we currently have equipped, if not, return & exit the function, if it is, then continue!
-
-	if (IsLocallyControlled() || HasAuthority())
-	{
-		CurrentIndex = Index; // Just set our 'CurrentIndex' variable to the new 'Index' passed in
-
-		const AWeapon* OldWeaponREF = CurrentWeapon; // Get a reference to the previously equiped weapon
-		CurrentWeapon = Weapons[Index]; // Assign weapon to the gun at our specified index
-		OnRep_CurrentWeapon(OldWeaponREF);
-	}
-
-	if (!HasAuthority())
-	{
-		Server_SetCurrentWeapon(Weapons[Index]);
-	}
-}
-
-void AFPSCharacter::DropWeapon()
-{
-
-}
-
-FTransform AFPSCharacter::GetPickupSpawn()
-{
-	FTransform output;
-
-	FVector OutLocation;
-	FRotator OutRotation;
-	GetController()->GetActorEyesViewPoint(OutLocation, OutRotation);
-	
-	output.SetLocation(OutLocation + (UKismetMathLibrary::GetForwardVector(OutRotation) * 200));
-	return output;
-}
-
-
-
-void AFPSCharacter::OnRep_CurrentWeapon(const AWeapon* OldWeapon) 
-{
-	if (CurrentWeapon) 
-	{
-		if(!CurrentWeapon->CurrentOwner) // Checks if there IS a 'CurrentOwner' for the 'CurrentWeapon'
-		{ 
-			const FTransform& PlacementTransform = CurrentWeapon->PlacementTransform * GetMesh()->GetSocketTransform(FName("weapon_socket_r"));
-			CurrentWeapon->SetActorTransform(PlacementTransform, false, nullptr, ETeleportType::TeleportPhysics);
-			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepWorldTransform, FName("weapon_socket_r"));
-
-			CurrentWeapon->CurrentOwner = this; // Set the owner of the current weapon to ourselves
-		}
-
-		CurrentWeapon->Mesh->SetVisibility(true);
-	}
-
-	if (OldWeapon) 
-	{
-		OldWeapon->Mesh->SetVisibility(false);
-	}
-
-	// Broadcast our Delegate function made in Vid #2:
-	CurrentWeaponChangedDelegate.Broadcast(CurrentWeapon, OldWeapon);
-}
-
-
-
-void AFPSCharacter::Server_SetCurrentWeapon_Implementation(AWeapon* NewWeapon) 
-{
-	const AWeapon* OldWeaponREF = CurrentWeapon; // Get a reference to the previously equiped weapon
-	CurrentWeapon = NewWeapon; // The 'Weapon' passed in will be the previously equipped weapon
-	OnRep_CurrentWeapon(OldWeaponREF);
-}
 
 
 
@@ -341,17 +245,7 @@ void AFPSCharacter::Server_SetCurrentWeapon_Implementation(AWeapon* NewWeapon)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
+// AIMING STUFF:
 
 void AFPSCharacter::StartAiming() 
 {
@@ -395,8 +289,6 @@ void AFPSCharacter::Multi_Aim_Implementation(const bool bForward)
 
 
 
-
-
 void AFPSCharacter::TimelineProgress(const float Value) 
 {
 	ADSWeight = Value;
@@ -407,16 +299,17 @@ void AFPSCharacter::TimelineProgress(const float Value)
 
 
 // CHARACTER CONTROLS:
-void AFPSCharacter::NextWeapon() 
-{
-	const int32 Index = Weapons.IsValidIndex(CurrentIndex + 1) ? CurrentIndex + 1 : 0; // Checks if we are at the last index, IF SO, wrap around and reset the index to 0, ELSE add '1' to our index
-	EquipWeapon(Index);
-}
-void AFPSCharacter::PreviousWeapon() 
-{
-	const int32 Index = Weapons.IsValidIndex(CurrentIndex - 1) ? CurrentIndex - 1 : Weapons.Num() - 1;
-	EquipWeapon(Index);
-}
+
+//void AFPSCharacter::NextWeapon() 
+//{
+//	const int32 Index = Weapons.IsValidIndex(CurrentIndex + 1) ? CurrentIndex + 1 : 0; // Checks if we are at the last index, IF SO, wrap around and reset the index to 0, ELSE add '1' to our index
+//	EquipWeapon(Index);
+//}
+//void AFPSCharacter::PreviousWeapon() 
+//{
+//	const int32 Index = Weapons.IsValidIndex(CurrentIndex - 1) ? CurrentIndex - 1 : Weapons.Num() - 1;
+//	EquipWeapon(Index);
+//}
 void AFPSCharacter::MoveForward(const float Value) 
 {
 	const FVector& Direction = FRotationMatrix(FRotator(0.f, GetControlRotation().Yaw, 0.f)).GetUnitAxis(EAxis::X); // Gets a unit vector is our pawns current facing direction and add a value to its position

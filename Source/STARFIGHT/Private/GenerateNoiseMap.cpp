@@ -4,7 +4,12 @@
 #include "GenerateNoiseMap.h"
 
 
-TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaves, float& persistance, float& lacurnarity) {
+
+DECLARE_CYCLE_STAT(TEXT("Update Collision"), STAT_ProcMesh_CalcTangents, STATGROUP_ProceduralMesh);
+
+
+
+TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaves, float& persistance, float& lacurnarity) {
 
 	TArray<FArray2D> noiseMap;
 
@@ -19,8 +24,8 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32& mapChunkSize, int32&
 	FRandomStream prng = FRandomStream( seed );
 	octaveOffsets.Init(FVector2D(), octaves);
 	for (int32 i = 0; i < octaves; i++) {
-		float offsetX = prng.FRandRange(-100000, 10000) + offset.X;
-		float offsetY = prng.FRandRange(-100000, 10000) + offset.Y;
+		float offsetX = prng.FRandRange(-100000, 100000) + offset.X;
+		float offsetY = prng.FRandRange(-100000, 100000) + offset.Y;
 		octaveOffsets[i] = FVector2D(offsetX, offsetY);
 	}
 
@@ -75,7 +80,10 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(int32& mapChunkSize, int32&
 
 
 
-TArray<FArray2D> UGenerateNoiseMap::GenerateFalloffMap(int32& mapChunkSize, float& a, float& b, float& c) {
+TArray<FArray2D> UGenerateNoiseMap::GenerateFalloffMap(const int32& mapChunkSize, float& a, float& b, float& c) {
+
+	const int32 t = 20;
+	int32 falloffMap_NEW[t][t];
 
 	TArray<FArray2D> falloffMap;
 	
@@ -103,7 +111,7 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateFalloffMap(int32& mapChunkSize, floa
 
 
 
-FGeneratedMeshData UGenerateNoiseMap::GenerateProceduralMeshData(int32 mapChunkSize, int32 seed, FVector2D offset, int32 levelOfDetail, 
+FGeneratedMeshData UGenerateNoiseMap::GenerateProceduralMeshData(const int32 mapChunkSize, int32 seed, FVector2D offset, int32 levelOfDetail, 
 																float noiseScale, int octaves, float persistance, float lacunarity, float heightMultiplier, 
 																float weightCurveExponent, float a, float b, float c) {
 	
@@ -170,6 +178,206 @@ FGeneratedMeshData UGenerateNoiseMap::GenerateProceduralMeshData(int32 mapChunkS
 }
 
 
+
+
+
+
+// STOLEN FROM "KismetProceduralMeshLibrary.cpp" :
+
+void UGenerateNoiseMap::CalculateNormalsANDTangents(const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector2D>& UVs, TArray<FVector>& Normals, TArray<FProcMeshTangent>& Tangents)
+{
+	SCOPE_CYCLE_COUNTER(STAT_ProcMesh_CalcTangents);
+
+	if (Vertices.Num() == 0)
+	{
+		return;
+	}
+
+	// Number of triangles
+	const int32 NumTris = Triangles.Num() / 3;
+	// Number of verts
+	const int32 NumVerts = Vertices.Num();
+
+	// Map of vertex to triangles in Triangles array
+	TMultiMap<int32, int32> VertToTriMap;
+	// Map of vertex to triangles to consider for normal calculation
+	TMultiMap<int32, int32> VertToTriSmoothMap;
+
+	// Normal/tangents for each face
+	TArray<FVector3f> FaceTangentX, FaceTangentY, FaceTangentZ;
+	FaceTangentX.AddUninitialized(NumTris);
+	FaceTangentY.AddUninitialized(NumTris);
+	FaceTangentZ.AddUninitialized(NumTris);
+
+	// Iterate over triangles
+	for (int TriIdx = 0; TriIdx < NumTris; TriIdx++)
+	{
+		int32 CornerIndex[3];
+		FVector3f P[3];
+
+		for (int32 CornerIdx = 0; CornerIdx < 3; CornerIdx++)
+		{
+			// Find vert index (clamped within range)
+			int32 VertIndex = FMath::Min(Triangles[(TriIdx * 3) + CornerIdx], NumVerts - 1);
+
+			CornerIndex[CornerIdx] = VertIndex;
+			P[CornerIdx] = (FVector3f)Vertices[VertIndex];
+
+			// Find/add this vert to index buffer
+			TArray<int32> VertOverlaps;
+			FindVertOverlaps(VertIndex, Vertices, VertOverlaps);
+
+			// Remember which triangles map to this vert
+			VertToTriMap.AddUnique(VertIndex, TriIdx);
+			VertToTriSmoothMap.AddUnique(VertIndex, TriIdx);
+
+			// Also update map of triangles that 'overlap' this vert (ie don't match UV, but do match smoothing) and should be considered when calculating normal
+			for (int32 OverlapIdx = 0; OverlapIdx < VertOverlaps.Num(); OverlapIdx++)
+			{
+				// For each vert we overlap..
+				int32 OverlapVertIdx = VertOverlaps[OverlapIdx];
+
+				// Add this triangle to that vert
+				VertToTriSmoothMap.AddUnique(OverlapVertIdx, TriIdx);
+
+				// And add all of its triangles to us
+				TArray<int32> OverlapTris;
+				VertToTriMap.MultiFind(OverlapVertIdx, OverlapTris);
+				for (int32 OverlapTriIdx = 0; OverlapTriIdx < OverlapTris.Num(); OverlapTriIdx++)
+				{
+					VertToTriSmoothMap.AddUnique(VertIndex, OverlapTris[OverlapTriIdx]);
+				}
+			}
+		}
+
+		// Calculate triangle edge vectors and normal
+		const FVector3f Edge21 = P[1] - P[2];
+		const FVector3f Edge20 = P[0] - P[2];
+		const FVector3f TriNormal = (Edge21 ^ Edge20).GetSafeNormal();
+
+		// If we have UVs, use those to calc 
+		if (UVs.Num() == Vertices.Num())
+		{
+			const FVector2D T1 = UVs[CornerIndex[0]];
+			const FVector2D T2 = UVs[CornerIndex[1]];
+			const FVector2D T3 = UVs[CornerIndex[2]];
+
+			FMatrix	ParameterToLocal(
+				FPlane(P[1].X - P[0].X, P[1].Y - P[0].Y, P[1].Z - P[0].Z, 0),
+				FPlane(P[2].X - P[0].X, P[2].Y - P[0].Y, P[2].Z - P[0].Z, 0),
+				FPlane(P[0].X, P[0].Y, P[0].Z, 0),
+				FPlane(0, 0, 0, 1)
+			);
+
+			FMatrix ParameterToTexture(
+				FPlane(T2.X - T1.X, T2.Y - T1.Y, 0, 0),
+				FPlane(T3.X - T1.X, T3.Y - T1.Y, 0, 0),
+				FPlane(T1.X, T1.Y, 1, 0),
+				FPlane(0, 0, 0, 1)
+			);
+
+			// Use InverseSlow to catch singular matrices.  Inverse can miss this sometimes.
+			const FMatrix TextureToLocal = ParameterToTexture.Inverse() * ParameterToLocal;
+
+			FaceTangentX[TriIdx] = FVector4f(TextureToLocal.TransformVector(FVector(1, 0, 0)).GetSafeNormal());
+			FaceTangentY[TriIdx] = FVector4f(TextureToLocal.TransformVector(FVector(0, 1, 0)).GetSafeNormal());
+		}
+		else
+		{
+			FaceTangentX[TriIdx] = Edge20.GetSafeNormal();
+			FaceTangentY[TriIdx] = (FaceTangentX[TriIdx] ^ TriNormal).GetSafeNormal();
+		}
+
+		FaceTangentZ[TriIdx] = TriNormal;
+	}
+
+
+	// Arrays to accumulate tangents into
+	TArray<FVector3f> VertexTangentXSum, VertexTangentYSum, VertexTangentZSum;
+	VertexTangentXSum.AddZeroed(NumVerts);
+	VertexTangentYSum.AddZeroed(NumVerts);
+	VertexTangentZSum.AddZeroed(NumVerts);
+
+	// For each vertex..
+	for (int VertxIdx = 0; VertxIdx < Vertices.Num(); VertxIdx++)
+	{
+		// Find relevant triangles for normal
+		TArray<int32> SmoothTris;
+		VertToTriSmoothMap.MultiFind(VertxIdx, SmoothTris);
+
+		for (int i = 0; i < SmoothTris.Num(); i++)
+		{
+			int32 TriIdx = SmoothTris[i];
+			VertexTangentZSum[VertxIdx] += FaceTangentZ[TriIdx];
+		}
+
+		// Find relevant triangles for tangents
+		TArray<int32> TangentTris;
+		VertToTriMap.MultiFind(VertxIdx, TangentTris);
+
+		for (int i = 0; i < TangentTris.Num(); i++)
+		{
+			int32 TriIdx = TangentTris[i];
+			VertexTangentXSum[VertxIdx] += FaceTangentX[TriIdx];
+			VertexTangentYSum[VertxIdx] += FaceTangentY[TriIdx];
+		}
+	}
+
+	// Finally, normalize tangents and build output arrays
+
+	Normals.Reset();
+	Normals.AddUninitialized(NumVerts);
+
+	Tangents.Reset();
+	Tangents.AddUninitialized(NumVerts);
+
+	for (int VertxIdx = 0; VertxIdx < NumVerts; VertxIdx++)
+	{
+		FVector3f& TangentX = VertexTangentXSum[VertxIdx];
+		FVector3f& TangentY = VertexTangentYSum[VertxIdx];
+		FVector3f& TangentZ = VertexTangentZSum[VertxIdx];
+
+		TangentX.Normalize();
+		TangentZ.Normalize();
+
+		Normals[VertxIdx] = (FVector)TangentZ;
+
+		// Use Gram-Schmidt orthogonalization to make sure X is orth with Z
+		TangentX -= TangentZ * (TangentZ | TangentX);
+		TangentX.Normalize();
+
+		// See if we need to flip TangentY when generating from cross product
+		const bool bFlipBitangent = ((TangentZ ^ TangentX) | TangentY) < 0.f;
+
+		Tangents[VertxIdx] = FProcMeshTangent((FVector)TangentX, bFlipBitangent);
+	}
+}
+
+
+
+void FindVertOverlaps(int32 TestVertIndex, const TArray<FVector>& Verts, TArray<int32>& VertOverlaps)
+{
+	// Check if Verts is empty or test is outside range
+	if (TestVertIndex < Verts.Num())
+	{
+		const FVector TestVert = Verts[TestVertIndex];
+
+		for (int32 VertIdx = 0; VertIdx < Verts.Num(); VertIdx++)
+		{
+			// First see if we overlap, and smoothing groups are the same
+			if (TestVert.Equals(Verts[VertIdx]))
+			{
+				// If it, so we are at least considered an 'overlap' for normal gen
+				VertOverlaps.Add(VertIdx);
+			}
+		}
+	}
+}
+
+
+
+
+
 // CURRENLTY NOT IN USE:
 FTransform UGenerateNoiseMap::calculateWorldTransform(FVector location, FVector normal, float maxTilt, float maxRotation, FRandomStream seed) {
 	
@@ -211,6 +419,8 @@ bool UGenerateNoiseMap::calculateHeightAvailability(float maxHeight, float minHe
 	
 	return result;
 }
+
+
 
 
 

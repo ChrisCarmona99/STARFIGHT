@@ -48,7 +48,7 @@ public:
 		class USceneComponent* Root;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Category")
-		class USkeletalMeshComponent* Mesh;  // Skeletal Mesh of our Character
+		class USkeletalMeshComponent* WeaponMesh;  // Skeletal Mesh of our Character
 
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "State")
@@ -61,16 +61,17 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configurations")
 		FTransform PlacementTransform; // The orientation offset from where the gun is connected to our skeletans hand component
 
+	
 
 	/*
 	*  ATTRIBUTES:
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "Attributes")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "Attributes", Meta = (ExposeOnSpawn=true), Meta = (InstanceEditable=true))
 		int32 CurrentClip;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attributes")
 		int32 ClipSize;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "Attributes")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Replicated, Category = "Attributes", Meta = (ExposeOnSpawn = true), Meta = (InstanceEditable = true))
 		int32 Reserves;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Attributes")
 		int32 MaxReserves;
@@ -100,7 +101,7 @@ public:
 	*/
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "IK")
 		FTransform GetSightsWorldTransform() const;
-	virtual FORCEINLINE FTransform GetSightsWorldTransform_Implementation() const { return Mesh->GetSocketTransform(FName("Sights")); } // the "Sights" is just whatever the socket name for our "Sights" socket is!
+	virtual FORCEINLINE FTransform GetSightsWorldTransform_Implementation() const { return WeaponMesh->GetSocketTransform(FName("Sights")); } // the "Sights" is just whatever the socket name for our "Sights" socket is!
 
 
 	// 'UpdateCurrentClip()' Server & Multicast definitions:

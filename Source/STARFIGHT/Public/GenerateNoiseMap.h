@@ -44,15 +44,18 @@ class STARFIGHT_API UGenerateNoiseMap : public UBlueprintFunctionLibrary {
 
 public:
 	UFUNCTION()
-		static TArray<FArray2D> GenerateNoiseMap(int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaves, float& persistance, float& lacurnarity);
+		static TArray<FArray2D> GenerateNoiseMap(const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaves, float& persistance, float& lacurnarity);
 
 	UFUNCTION()
-		static TArray<FArray2D> GenerateFalloffMap(int32& mapChunkSize, float& a, float& b, float& c);
+		static TArray<FArray2D> GenerateFalloffMap(const int32& mapChunkSize, float& a, float& b, float& c);
+
 
 
 	UFUNCTION(BlueprintCallable)
-		static FGeneratedMeshData GenerateProceduralMeshData(int32 mapChunkSize, int32 seed, FVector2D offset, int32 levelOfDetail, float noiseScale, int octaves, float persistance, float lacunarity, float heightMultiplier, float weightCurveExponent, float a, float b, float c);
+		static FGeneratedMeshData GenerateProceduralMeshData(const int32 mapChunkSize, int32 seed, FVector2D offset, int32 levelOfDetail, float noiseScale, int octaves, float persistance, float lacunarity, float heightMultiplier, float weightCurveExponent, float a, float b, float c);
 	
+
+
 	UFUNCTION(BlueprintCallable)
 		static FTransform calculateWorldTransform(FVector location, FVector normal, float maxTilt, float maxRotation, FRandomStream seed);
 
@@ -62,6 +65,11 @@ public:
 	UFUNCTION(BlueprintCallable)
 		static bool calculateHeightAvailability(float maxHeight, float minHeight, FVector spawnLocation);
 	
+
+	UFUNCTION()
+		static void CalculateNormalsANDTangents(const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector2D>& UVs, TArray<FVector>& Normals, TArray<FProcMeshTangent>& Tangents);
+
+
 
 	UFUNCTION()
 		static float calculateWeightCurve(float vertexHeight, float exponent);
