@@ -1,15 +1,17 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
+
 #include "GenerateNoiseMap.h"
 
 
 
-DECLARE_CYCLE_STAT(TEXT("Update Collision"), STAT_ProcMesh_CalcTangents, STATGROUP_ProceduralMesh);
+//DECLARE_CYCLE_STAT(TEXT("Update Collision"), STAT_ProcMesh_CalcTangents, STATGROUP_ProceduralMesh);
 
 
 
-TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaves, float& persistance, float& lacurnarity) {
+TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaves, float& persistance, float& lacurnarity) 
+{
 
 	TArray<FArray2D> noiseMap;
 
@@ -80,10 +82,11 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(const int32& mapChunkSize, 
 
 
 
-TArray<FArray2D> UGenerateNoiseMap::GenerateFalloffMap(const int32& mapChunkSize, float& a, float& b, float& c) {
+TArray<FArray2D> UGenerateNoiseMap::GenerateFalloffMap(const int32& mapChunkSize, float& a, float& b, float& c) 
+{
 
-	const int32 t = 20;
-	int32 falloffMap_NEW[t][t];
+	/*const int32 t = 20;
+	int32 falloffMap_NEW[t][t]{};*/
 
 	TArray<FArray2D> falloffMap;
 	
@@ -111,27 +114,83 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateFalloffMap(const int32& mapChunkSize
 
 
 
+
+
+TArray<FArray2D> UGenerateNoiseMap::GenerateErosionMap(const TArray<FArray2D> GeneratedMap, const int32& mapChunkSize, const int32& seed, int32& dropletLifetime, const int32& numIterations) 
+{
+	FRandomStream prng = FRandomStream(seed);
+
+	for (int iteration = 0; iteration < numIterations; iteration++) 
+	{
+		// Create Water Droplet at a random point on the map:
+		float x = prng.FRandRange(0, mapChunkSize - 1);
+		float y = prng.FRandRange(0, mapChunkSize - 1);
+		TArray<FArray2D> direction; // two dimensional normalized float vector 
+		float velocity = 0;
+		float water = 0;
+		float sediment = 0;
+
+		for (int lifetime = 0; lifetime < dropletLifetime; lifetime++)
+		{
+
+			// Calculate droplet's height and the direction of the flow with bilinear interpolation of surrounding heights
+			
+			float height = GeneratedMap[y].secondArray[x];
+
+
+
+			// Update the droplet's position (move 1 unit regardless of speed so as not to skip over sections fo the map)
+
+			// Find the droplet's new height and calculate the 'deltaHeight'
+
+			// Calculate the droplet's sediment capacity (higher when moving fast down a slop and contains lots of water)
+
+			// - If carrying more sediment than capacity, or if flowing up a slope:
+			// deposite a fraction of the sediment to the surrounding nodes (with bilinear interpolation)
+
+			// - Otherwise:
+			// Erode a fraction of the droplet's remaining capacity from teh soil, distributed over the radius of the droplets
+			// NOTE: don't erode more than deltaHeight to avoid digging holes behind the droplet and creating spikes
+
+			// Update droplet's speed based on deltaHeight
+			// Evaporate a fraction of the droplet's water
+
+		}
+	}
+	
+	return TArray<FArray2D>();
+}
+
+
+
 FGeneratedMeshData UGenerateNoiseMap::GenerateProceduralMeshData(const int32 mapChunkSize, int32 seed, FVector2D offset, int32 levelOfDetail, 
 																float noiseScale, int octaves, float persistance, float lacunarity, float heightMultiplier, 
-																float weightCurveExponent, float a, float b, float c) {
+																float weightCurveExponent, float a, float b, float c)
+{
 	
 	FGeneratedMeshData meshData;
 	
 	TArray<FArray2D> noiseMap = UGenerateNoiseMap::GenerateNoiseMap(mapChunkSize, seed, offset, noiseScale, octaves, persistance, lacunarity);
 	TArray<FArray2D> falloffMap = UGenerateNoiseMap::GenerateFalloffMap(mapChunkSize, a, b, c);
 
+	UE_LOG(LogTemp, Warning, TEXT("mapChunkSize == %d"), mapChunkSize);
 
-	// Sets the starting 
+	// Sets the starting point:
 	float topLeftX = (mapChunkSize - 1) / -2.f;
-	float topLeftZ = (mapChunkSize - 1) / 2.f;
+	float topLeftY = (mapChunkSize - 1) / 2.f;
+	UE_LOG(LogTemp, Warning, TEXT("topLeftX == %d"), topLeftX);
+	UE_LOG(LogTemp, Warning, TEXT("topLeftY == %d"), topLeftY);
 
 	// Calculates the increment for mesh LODs (ensures 'levelOfDetail' is NOT 0):
 	int32 LODincrement = levelOfDetail == 0 ? 1 : levelOfDetail * 2;
 	// Calculates correct number of vertices for our 'vertices' array:
-	int32 verticesPerLine = (mapChunkSize - 1) / LODincrement + 1;
+	int32 verticesPerLine = ((mapChunkSize - 1) / LODincrement) + 1;
+
+	UE_LOG(LogTemp, Warning, TEXT("LODincrement == %d"), LODincrement);
+	UE_LOG(LogTemp, Warning, TEXT("verticesPerLine == %d"), verticesPerLine);
+	std::cout << "\n\n	verticesPerLine == " << verticesPerLine;
 
 	int32 vertexIndex = 0;
-
 
 	for (int32 y = 0; y < mapChunkSize; y += LODincrement) {
 		for (int32 x = 0; x < mapChunkSize; x += LODincrement) {
@@ -141,9 +200,9 @@ FGeneratedMeshData UGenerateNoiseMap::GenerateProceduralMeshData(const int32 map
 
 			// Define the height for the current vertex in our iteration:
 			float currentHeight = calculateWeightCurve(noiseMap[y].secondArray[x], weightCurveExponent) * heightMultiplier;
-			 
+			
 			// Add each vertex, uv, & vertexColor:
-			meshData.vertices.Add(FVector(topLeftX + x, topLeftZ - y, currentHeight)); // SETS [X, Y, Z] FOR EACH VERTEX
+			meshData.vertices.Add(FVector(topLeftX + x, topLeftY - y, currentHeight)); // SETS [X, Y, Z] FOR EACH VERTEX
 			//meshData.uvs.Add(FVector2D(x / (float)mapChunkSize, y / (float)mapChunkSize));
 			meshData.uvs.Add(FVector2D(x, y));
 			meshData.vertexColorsNEW.Add(FColor(0.50, 0.75, 1.00, 1.0));
@@ -153,21 +212,6 @@ FGeneratedMeshData UGenerateNoiseMap::GenerateProceduralMeshData(const int32 map
 				// Add Triangles (two per square tile):
 				meshData.AddTriangle(vertexIndex, vertexIndex + verticesPerLine + 1, vertexIndex + verticesPerLine);
 				meshData.AddTriangle(vertexIndex + verticesPerLine + 1, vertexIndex, vertexIndex + 1);
-
-				// Add Normals:
-				//FVector v1 = FVector(1.0f, 0.0f, noiseMap[y].secondArray[x + 1] - noiseMap[y].secondArray[x]);  // (x + 1 - x, y - y, next height - current height)
-				//FVector v2 = FVector(0.0f, 1.0f, noiseMap[y + 1].secondArray[x] - noiseMap[y].secondArray[x]);  // (x - x, y + 1 - y, next height - current height)
-				//FVector newNormal = FVector::CrossProduct(v2, v1);
-				//meshData.normals.Add(newNormal);
-
-				//float magnitude = (FMath::Sqrt((v2[0] + v1[0]) / 2 + (v2[1] + v1[1]) / 2 + (v2[2] + v1[2]) / 2));
-				
-				//UE_LOG(LogTemp, Warning, TEXT("magnitude = %d   :   NEW TANGENT  =  (%d, %d, %d)"), magnitude, (v2[0] + v1[0]) / (2), (v2[1] + v1[1]) / (2), (v2[2] + v1[2]) / (2 * magnitude) );
-				
-
-				// Add Tangents:
-				//meshData.tangents.Add(FProcMeshTangent( (v2[0] + v1[0]) / (2), (v2[1] + v1[1]) / (2), (v2[2] + v1[2]) / (2 * magnitude) ));
-
 			}
 
 			vertexIndex++;
@@ -181,12 +225,11 @@ FGeneratedMeshData UGenerateNoiseMap::GenerateProceduralMeshData(const int32 map
 
 
 
-
 // STOLEN FROM "KismetProceduralMeshLibrary.cpp" :
 
 void UGenerateNoiseMap::CalculateNormalsANDTangents(const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector2D>& UVs, TArray<FVector>& Normals, TArray<FProcMeshTangent>& Tangents)
 {
-	SCOPE_CYCLE_COUNTER(STAT_ProcMesh_CalcTangents);
+	//SCOPE_CYCLE_COUNTER(STAT_ProcMesh_CalcTangents);
 
 	if (Vertices.Num() == 0)
 	{
@@ -355,7 +398,7 @@ void UGenerateNoiseMap::CalculateNormalsANDTangents(const TArray<FVector>& Verti
 
 
 
-void FindVertOverlaps(int32 TestVertIndex, const TArray<FVector>& Verts, TArray<int32>& VertOverlaps)
+void UGenerateNoiseMap::FindVertOverlaps(int32 TestVertIndex, const TArray<FVector>& Verts, TArray<int32>& VertOverlaps)
 {
 	// Check if Verts is empty or test is outside range
 	if (TestVertIndex < Verts.Num())
@@ -439,6 +482,6 @@ float UGenerateNoiseMap::InverseLerp(float min, float max, float value) {
 
 
 float UGenerateNoiseMap::calculateFalloff(float value, float a, float b, float c) {
-	float output = (FMath::Pow(value, a) / (c * FMath::Pow(value, a) + FMath::Pow(b - b * value, a)) );
+	float output = (FMath::Pow(value, a) / (c * FMath::Pow(value, a) + FMath::Pow((b - b * value), a)) );
 	return output;
 }
