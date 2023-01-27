@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "MeshData.h"
+#include "../ProceduralGenerationStuff/MeshData.h"
 #include "Math.h"
 #include "Math/RandomStream.h"
 #include "Engine/Classes/Materials/Material.h"
@@ -34,7 +34,7 @@ struct FArray2D
 		secondArray.Add(y);
 	}
 };
-
+ 
 FArray2D::FArray2D() {}
 
 
@@ -81,7 +81,9 @@ public:
 		static FGeneratedMeshData GenerateProceduralMeshData(const int32 mapChunkSize, int32 seed, FVector2D offset, int32 levelOfDetail, float noiseScale, int octaves, float persistance, float lacunarity, float heightMultiplier, float weightCurveExponent, float a, float b, float c);
 	
 
-
+	/*
+	*	HELPER FUNCTIONS:
+	*/
 	UFUNCTION(BlueprintCallable)
 		static FTransform calculateWorldTransform(FVector location, FVector normal, float maxTilt, float maxRotation, FRandomStream seed);
 

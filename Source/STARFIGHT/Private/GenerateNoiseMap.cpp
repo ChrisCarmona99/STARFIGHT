@@ -22,7 +22,6 @@ TArray<FArray2D> UGenerateNoiseMap::GenerateNoiseMap(const int32& mapChunkSize, 
 
 	TArray<FVector2D> octaveOffsets;
 
-	
 	FRandomStream prng = FRandomStream( seed );
 	octaveOffsets.Init(FVector2D(), octaves);
 	for (int32 i = 0; i < octaves; i++) {
@@ -203,7 +202,6 @@ FGeneratedMeshData UGenerateNoiseMap::GenerateProceduralMeshData(const int32 map
 			
 			// Add each vertex, uv, & vertexColor:
 			meshData.vertices.Add(FVector(topLeftX + x, topLeftY - y, currentHeight)); // SETS [X, Y, Z] FOR EACH VERTEX
-			//meshData.uvs.Add(FVector2D(x / (float)mapChunkSize, y / (float)mapChunkSize));
 			meshData.uvs.Add(FVector2D(x, y));
 			meshData.vertexColorsNEW.Add(FColor(0.50, 0.75, 1.00, 1.0));
 
@@ -220,8 +218,6 @@ FGeneratedMeshData UGenerateNoiseMap::GenerateProceduralMeshData(const int32 map
 
 	return meshData;
 }
-
-
 
 
 
@@ -396,8 +392,6 @@ void UGenerateNoiseMap::CalculateNormalsANDTangents(const TArray<FVector>& Verti
 	}
 }
 
-
-
 void UGenerateNoiseMap::FindVertOverlaps(int32 TestVertIndex, const TArray<FVector>& Verts, TArray<int32>& VertOverlaps)
 {
 	// Check if Verts is empty or test is outside range
@@ -416,8 +410,6 @@ void UGenerateNoiseMap::FindVertOverlaps(int32 TestVertIndex, const TArray<FVect
 		}
 	}
 }
-
-
 
 
 
@@ -452,8 +444,6 @@ bool UGenerateNoiseMap::calculateSlopeAvailability(float maxSlope, float minSlop
 	return result;
 }
 
-
-
 bool UGenerateNoiseMap::calculateHeightAvailability(float maxHeight, float minHeight, FVector spawnLocation) {
 
 	bool result;
@@ -463,23 +453,15 @@ bool UGenerateNoiseMap::calculateHeightAvailability(float maxHeight, float minHe
 	return result;
 }
 
-
-
-
-
 float UGenerateNoiseMap::calculateWeightCurve(float vertexHeight, float exponent) {
 	float output = pow(vertexHeight, exponent);
 	return output;
 }
 
-
-
 float UGenerateNoiseMap::InverseLerp(float min, float max, float value) {
 	float output = (value - min) / (max - min);
 	return output;
 }
-
-
 
 float UGenerateNoiseMap::calculateFalloff(float value, float a, float b, float c) {
 	float output = (FMath::Pow(value, a) / (c * FMath::Pow(value, a) + FMath::Pow((b - b * value), a)) );
