@@ -8,22 +8,13 @@
 
 struct MYSHADERS_API FMySimpleComputeShaderDispatchParams
 {
+	FMySimpleComputeShaderDispatchParams(int x, int y, int z) : X(x), Y(y), Z(z) {}
 	int X;
 	int Y;
 	int Z;
 
-
 	int Input[2];
-	int Output;
-
-
-
-	FMySimpleComputeShaderDispatchParams(int x, int y, int z)
-		: X(x)
-		, Y(y)
-		, Z(z)
-	{
-	}
+	int Output;	
 };
 
 // This is a public interface that we define so outside code can invoke our compute shader.
