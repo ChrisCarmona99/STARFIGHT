@@ -35,9 +35,8 @@ public:
 	{
 		ENQUEUE_RENDER_COMMAND(SceneDrawCompletion)(
 			[Params, AsyncCallback](FRHICommandListImmediate& RHICmdList)
-			{
-				DispatchRenderThread(RHICmdList, Params, AsyncCallback);
-			});
+			{ DispatchRenderThread(RHICmdList, Params, AsyncCallback); }
+		);
 	}
 
 	// Dispatches this shader. Can be called from any thread
