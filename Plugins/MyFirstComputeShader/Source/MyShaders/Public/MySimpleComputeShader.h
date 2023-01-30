@@ -18,37 +18,37 @@ struct MYSHADERS_API FMySimpleComputeShaderDispatchParams
 };
 
 // This is a public interface that we define so outside code can invoke our compute shader.
+// 
+// CALLED IN: UMySimpleComputeShaderLibrary_AsyncExecution
 class MYSHADERS_API FMySimpleComputeShaderInterface {
 public:
-	// Executes this shader on the render thread
-	static void DispatchRenderThread(
-		FRHICommandListImmediate& RHICmdList,
-		FMySimpleComputeShaderDispatchParams Params,
-		TFunction<void(int OutputVal)> AsyncCallback
-	);
+	// (DEC): Executes this shader on the render thread
+	// (2/2 in .CPP file) 
+	static void DispatchRenderThread(FRHICommandListImmediate& RHICmdList,
+									 FMySimpleComputeShaderDispatchParams Params,
+									 TFunction<void(int OutputVal)> AsyncCallback);
 
-	// Executes this shader on the render thread from the game thread via EnqueueRenderThreadCommand
-	static void DispatchGameThread(
-		FMySimpleComputeShaderDispatchParams Params,
-		TFunction<void(int OutputVal)> AsyncCallback
-	)
+	// (DEC & DEF): Executes this shader on the render thread from the game thread via EnqueueRenderThreadCommand
+	static void DispatchGameThread(FMySimpleComputeShaderDispatchParams Params,
+								   TFunction<void(int OutputVal)> AsyncCallback)
 	{
-		ENQUEUE_RENDER_COMMAND(SceneDrawCompletion)(
-			[Params, AsyncCallback](FRHICommandListImmediate& RHICmdList)
-			{ DispatchRenderThread(RHICmdList, Params, AsyncCallback); }
-		);
+		auto renderCommand_LAMBDA = [Params, AsyncCallback](FRHICommandListImmediate& RHICmdList)
+		{
+			DispatchRenderThread(RHICmdList, Params, AsyncCallback);
+		};
+		ENQUEUE_RENDER_COMMAND(SceneDrawCompletion)(renderCommand_LAMBDA);
 	}
 
-	// Dispatches this shader. Can be called from any thread
-	static void Dispatch(
-		FMySimpleComputeShaderDispatchParams Params,
-		TFunction<void(int OutputVal)> AsyncCallback
-	)
+	// (DEC & DEF): Dispatches this shader. Can be called from any thread
+	static void Dispatch(FMySimpleComputeShaderDispatchParams Params,
+						 TFunction<void(int OutputVal)> AsyncCallback)
 	{
-		if (IsInRenderingThread()) {
+		if (IsInRenderingThread())
+		{
 			DispatchRenderThread(GetImmediateCommandList_ForRenderCommand(), Params, AsyncCallback);
 		}
-		else {
+		else
+		{
 			DispatchGameThread(Params, AsyncCallback);
 		}
 	}
@@ -66,23 +66,27 @@ class MYSHADERS_API UMySimpleComputeShaderLibrary_AsyncExecution : public UBluep
 
 public:
 
-	// Execute the actual load
-	virtual void Activate() override {
+	// (DEC & DEF): Execute the actual load
+	virtual void Activate() override 
+	{
 		// Create a dispatch parameters struct and fill it the input array with our args
 		FMySimpleComputeShaderDispatchParams Params(1, 1, 1);
 		Params.Input[0] = Arg1;
 		Params.Input[1] = Arg2;
 
 		// Dispatch the compute shader and wait until it completes
-		FMySimpleComputeShaderInterface::Dispatch(Params, [this](int OutputVal) {
+		auto broadcast_LAMBDA = [this](int OutputVal)
+		{
 			this->Completed.Broadcast(OutputVal);
-			});
+		};
+		FMySimpleComputeShaderInterface::Dispatch(Params, broadcast_LAMBDA);
 	}
 
 
 
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", Category = "ComputeShader", WorldContext = "WorldContextObject"))
-		static UMySimpleComputeShaderLibrary_AsyncExecution* ExecuteBaseComputeShader(UObject* WorldContextObject, int Arg1, int Arg2) {
+	static UMySimpleComputeShaderLibrary_AsyncExecution* ExecuteBaseComputeShader(UObject* WorldContextObject, int Arg1, int Arg2) 
+	{
 		UMySimpleComputeShaderLibrary_AsyncExecution* Action = NewObject<UMySimpleComputeShaderLibrary_AsyncExecution>();
 		Action->Arg1 = Arg1;
 		Action->Arg2 = Arg2;

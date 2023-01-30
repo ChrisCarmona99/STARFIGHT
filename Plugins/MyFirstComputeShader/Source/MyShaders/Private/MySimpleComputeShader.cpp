@@ -14,7 +14,10 @@
 DECLARE_STATS_GROUP(TEXT("MySimpleComputeShader"), STATGROUP_MySimpleComputeShader, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("MySimpleComputeShader Execute"), STAT_MySimpleComputeShader_Execute, STATGROUP_MySimpleComputeShader);
 
+// 
 // This class carries our parameter declarations and acts as the bridge between cpp and HLSL.
+// 
+// DEC & DEF in the .cpp file because this class is only used in 'DispatchRenderThread'
 class MYSHADERS_API FMySimpleComputeShader : public FGlobalShader
 {
 public:
@@ -54,9 +57,10 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, Output)
 
 
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
 public:
+	// (DEC & DEF): 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		const FPermutationDomain PermutationVector(Parameters.PermutationId);
@@ -64,6 +68,7 @@ public:
 		return true;
 	}
 
+	// (DEC & DEF): 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -91,13 +96,25 @@ public:
 private:
 };
 
-// This will tell the engine to create the shader and where the shader entry point is.
+
+
+
+
+// This will tell the engine to create the shader and where the shader entry point is:
+// 
 //                            ShaderType                            ShaderPath                     Shader function name    Type
 IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/MyShadersShaders/MySimpleComputeShader.usf", "MySimpleComputeShader", SF_Compute);
 
-void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmediate& RHICmdList, FMySimpleComputeShaderDispatchParams Params, TFunction<void(int OutputVal)> AsyncCallback) {
+
+// 
+void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmediate& RHICmdList, 
+														   FMySimpleComputeShaderDispatchParams Params, 
+														   TFunction<void(int OutputVal)> AsyncCallback) 
+{
+
 	FRDGBuilder GraphBuilder(RHICmdList);
 
+	// Not too sure why this pair of brackets starting on the next line are here, but I think there may be a mutex lock within one of these 4 macros
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MySimpleComputeShader_Execute);
 		DECLARE_GPU_STAT(MySimpleComputeShader)
@@ -114,9 +131,9 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 
 		bool bIsShaderValid = ComputeShader.IsValid();
 
-		if (bIsShaderValid) {
+		if (bIsShaderValid) 
+		{
 			FMySimpleComputeShader::FParameters* PassParameters = GraphBuilder.AllocParameters<FMySimpleComputeShader::FParameters>();
-
 
 			const void* RawData = (void*)Params.Input;
 			int NumInputs = 2;
@@ -125,28 +142,27 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 
 			PassParameters->Input = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InputBuffer, PF_R32_SINT));
 
-			FRDGBufferRef OutputBuffer = GraphBuilder.CreateBuffer(
-				FRDGBufferDesc::CreateBufferDesc(sizeof(int32), 1),
-				TEXT("OutputBuffer"));
+			FRDGBufferRef OutputBuffer = GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateBufferDesc(sizeof(int32), 1), TEXT("OutputBuffer") );
 
 			PassParameters->Output = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutputBuffer, PF_R32_SINT));
 
 
 			auto GroupCount = FComputeShaderUtils::GetGroupCount(FIntVector(Params.X, Params.Y, Params.Z), FComputeShaderUtils::kGolden2DGroupSize);
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("ExecuteMySimpleComputeShader"),
-				PassParameters,
-				ERDGPassFlags::AsyncCompute,
-				[&PassParameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
-				{
-					FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GroupCount);
-				});
+			
+			GraphBuilder.AddPass(RDG_EVENT_NAME("ExecuteMySimpleComputeShader"),
+								 PassParameters,
+								 ERDGPassFlags::AsyncCompute,
+								 [&PassParameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
+								 {
+								     FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GroupCount);
+								 });
 
 
 			FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("ExecuteMySimpleComputeShaderOutput"));
 			AddEnqueueCopyPass(GraphBuilder, GPUBufferReadback, OutputBuffer, 0u);
 
-			auto RunnerFunc = [GPUBufferReadback, AsyncCallback](auto&& RunnerFunc) -> void {
+			auto RunnerFunc = [GPUBufferReadback, AsyncCallback](auto&& RunnerFunc) -> void 
+			{
 				if (GPUBufferReadback->IsReady()) {
 
 					int32* Buffer = (int32*)GPUBufferReadback->Lock(1);
@@ -154,22 +170,28 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 
 					GPUBufferReadback->Unlock();
 
-					AsyncTask(ENamedThreads::GameThread, [AsyncCallback, OutVal]() {
-						AsyncCallback(OutVal);
-						});
+					AsyncTask(ENamedThreads::GameThread, 
+							  [AsyncCallback, OutVal]() 
+							  {
+							      AsyncCallback(OutVal);
+							  });
 
 					delete GPUBufferReadback;
 				}
 				else {
-					AsyncTask(ENamedThreads::ActualRenderingThread, [RunnerFunc]() {
-						RunnerFunc(RunnerFunc);
-						});
+					AsyncTask(ENamedThreads::ActualRenderingThread, 
+							  [RunnerFunc]() 
+							  {
+							      RunnerFunc(RunnerFunc);
+							  });
 				}
 			};
-
-			AsyncTask(ENamedThreads::ActualRenderingThread, [RunnerFunc]() {
-				RunnerFunc(RunnerFunc);
-				});
+			
+			AsyncTask(ENamedThreads::ActualRenderingThread, 
+					  [RunnerFunc]() 
+					  {
+					      RunnerFunc(RunnerFunc);
+					  });
 
 		}
 		else {

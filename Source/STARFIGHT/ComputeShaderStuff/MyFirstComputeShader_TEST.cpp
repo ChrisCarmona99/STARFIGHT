@@ -21,7 +21,7 @@
 //FMySimpleComputeShaderInterface::Dispatch(Params, [&OutputTmp](int OutputVal) {
 //	//	// Called when the results are back from the GPU.
 //	OutputTmp = OutputVal;
-//GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, FString::Printf(TEXT("OutputVal= %d"), OutputTmp)); // Returns 10
+//	GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, FString::Printf(TEXT("OutputVal= %d"), OutputTmp)); // Returns 10
 //	});
 //
 //GEngine->AddOnScreenDebugMessage(-1, 15.0f, FColor::Yellow, FString::Printf(TEXT("OutputTmp= %d"), OutputTmp)); // Returns 0
