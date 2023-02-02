@@ -10,6 +10,8 @@ public class STARFIGHTEditorTarget : TargetRules
 		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.V2;
 
-		ExtraModuleNames.AddRange( new string[] { "STARFIGHT" } );
+        IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_1;
+
+        ExtraModuleNames.AddRange( new string[] { "STARFIGHT" } );
 	}
 }

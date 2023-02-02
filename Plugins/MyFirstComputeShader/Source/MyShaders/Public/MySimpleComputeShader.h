@@ -6,9 +6,12 @@
 
 #include "MySimpleComputeShader.generated.h"
 
+
+
 struct MYSHADERS_API FMySimpleComputeShaderDispatchParams
 {
 	FMySimpleComputeShaderDispatchParams(int x, int y, int z) : X(x), Y(y), Z(z) {}
+
 	int X;
 	int Y;
 	int Z;
@@ -17,16 +20,21 @@ struct MYSHADERS_API FMySimpleComputeShaderDispatchParams
 	int Output;	
 };
 
+
+
 // This is a public interface that we define so outside code can invoke our compute shader.
 // 
 // CALLED IN: UMySimpleComputeShaderLibrary_AsyncExecution
-class MYSHADERS_API FMySimpleComputeShaderInterface {
+class MYSHADERS_API FMySimpleComputeShaderInterface 
+{
 public:
+
 	// (DEC): Executes this shader on the render thread
 	// (2/2 in .CPP file) 
 	static void DispatchRenderThread(FRHICommandListImmediate& RHICmdList,
 									 FMySimpleComputeShaderDispatchParams Params,
 									 TFunction<void(int OutputVal)> AsyncCallback);
+
 
 	// (DEC & DEF): Executes this shader on the render thread from the game thread via EnqueueRenderThreadCommand
 	static void DispatchGameThread(FMySimpleComputeShaderDispatchParams Params,
@@ -38,6 +46,7 @@ public:
 		};
 		ENQUEUE_RENDER_COMMAND(SceneDrawCompletion)(renderCommand_LAMBDA);
 	}
+
 
 	// (DEC & DEF): Dispatches this shader. Can be called from any thread
 	static void Dispatch(FMySimpleComputeShaderDispatchParams Params,
@@ -52,6 +61,8 @@ public:
 			DispatchGameThread(Params, AsyncCallback);
 		}
 	}
+
+
 };
 
 
@@ -69,7 +80,7 @@ public:
 	// (DEC & DEF): Execute the actual load
 	virtual void Activate() override 
 	{
-		// Create a dispatch parameters struct and fill it the input array with our args
+		// Create a dispatch parameters struct and fill the input array with our args
 		FMySimpleComputeShaderDispatchParams Params(1, 1, 1);
 		Params.Input[0] = Arg1;
 		Params.Input[1] = Arg2;
@@ -83,7 +94,7 @@ public:
 	}
 
 
-
+	//  (DEC & DEF): 
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", Category = "ComputeShader", WorldContext = "WorldContextObject"))
 	static UMySimpleComputeShaderLibrary_AsyncExecution* ExecuteBaseComputeShader(UObject* WorldContextObject, int Arg1, int Arg2) 
 	{

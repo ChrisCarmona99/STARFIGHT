@@ -25,7 +25,7 @@ public:
 	DECLARE_GLOBAL_SHADER(FMySimpleComputeShader);
 	SHADER_USE_PARAMETER_STRUCT(FMySimpleComputeShader, FGlobalShader);
 
-
+	
 	class FMySimpleComputeShader_Perm_TEST : SHADER_PERMUTATION_INT("TEST", 1);
 	using FPermutationDomain = TShaderPermutationDomain<FMySimpleComputeShader_Perm_TEST>;
 
@@ -67,7 +67,6 @@ public:
 
 		return true;
 	}
-
 	// (DEC & DEF): 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -106,12 +105,12 @@ private:
 IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/MyShadersShaders/MySimpleComputeShader.usf", "MySimpleComputeShader", SF_Compute);
 
 
-// 
+
 void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmediate& RHICmdList, 
 														   FMySimpleComputeShaderDispatchParams Params, 
 														   TFunction<void(int OutputVal)> AsyncCallback) 
 {
-
+	
 	FRDGBuilder GraphBuilder(RHICmdList);
 
 	// Not too sure why this pair of brackets starting on the next line are here, but I think there may be a mutex lock within one of these 4 macros
