@@ -27,14 +27,30 @@ struct MYSHADERS_API FMySimpleComputeShaderDispatchParams
 // CALLED IN: UMySimpleComputeShaderLibrary_AsyncExecution
 class MYSHADERS_API FMySimpleComputeShaderInterface 
 {
+
 public:
+
+	// (DEC & DEF): Dispatches this shader. Can be called from any thread
+	static void Dispatch(FMySimpleComputeShaderDispatchParams Params,
+		TFunction<void(int OutputVal)> AsyncCallback)
+	{
+		if (IsInRenderingThread())
+		{
+			DispatchRenderThread(GetImmediateCommandList_ForRenderCommand(), Params, AsyncCallback);
+		}
+		else
+		{
+			DispatchGameThread(Params, AsyncCallback);
+		}
+	}
+
+
 
 	// (DEC): Executes this shader on the render thread
 	// (2/2 in .CPP file) 
 	static void DispatchRenderThread(FRHICommandListImmediate& RHICmdList,
 									 FMySimpleComputeShaderDispatchParams Params,
 									 TFunction<void(int OutputVal)> AsyncCallback);
-
 
 	// (DEC & DEF): Executes this shader on the render thread from the game thread via EnqueueRenderThreadCommand
 	static void DispatchGameThread(FMySimpleComputeShaderDispatchParams Params,
@@ -48,26 +64,16 @@ public:
 	}
 
 
-	// (DEC & DEF): Dispatches this shader. Can be called from any thread
-	static void Dispatch(FMySimpleComputeShaderDispatchParams Params,
-						 TFunction<void(int OutputVal)> AsyncCallback)
-	{
-		if (IsInRenderingThread())
-		{
-			DispatchRenderThread(GetImmediateCommandList_ForRenderCommand(), Params, AsyncCallback);
-		}
-		else
-		{
-			DispatchGameThread(Params, AsyncCallback);
-		}
-	}
-
-
 };
 
 
 
+
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMySimpleComputeShaderLibrary_AsyncExecutionCompleted, const int, Value);
+
+
+
 
 
 UCLASS() // Change the _API to match your project

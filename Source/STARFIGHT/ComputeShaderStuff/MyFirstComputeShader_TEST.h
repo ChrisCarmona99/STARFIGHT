@@ -1,9 +1,8 @@
 #pragma once
-
-#include "CoreMinimal.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
-
 #include "MyShaders/Public/MySimpleComputeShader.h"
+#include "CoreMinimal.h"
+
+#include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "MyFirstComputeShader_TEST.generated.h"
 
@@ -17,6 +16,6 @@ class STARFIGHT_API UMyFirstComputeShader_TEST : public UBlueprintFunctionLibrar
 	GENERATED_BODY()
 
 public:
-	UFUNCTION()
+	UFUNCTION(BlueprintCallable)
 		static int CALL_TEST_COMPUTE_SHADER(int a, int b);
 };

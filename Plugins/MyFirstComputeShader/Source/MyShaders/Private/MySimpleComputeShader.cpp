@@ -106,6 +106,8 @@ IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/MyShadersShaders/MySimpleCompu
 
 
 
+
+
 void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmediate& RHICmdList, 
 														   FMySimpleComputeShaderDispatchParams Params, 
 														   TFunction<void(int OutputVal)> AsyncCallback) 
