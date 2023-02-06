@@ -18,7 +18,7 @@ void FMyShadersModule::StartupModule()
 
 	// Maps virtual shader source directory to the plugin's actual shaders directory.
 	FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("MyFirstComputeShader"))->GetBaseDir(), TEXT("Shaders/Private"));
-	AddShaderSourceDirectoryMapping(TEXT("/MyShadersShaders"), PluginShaderDir);
+	AddShaderSourceDirectoryMapping(TEXT("/MyShaders"), PluginShaderDir);
 }
 
 void FMyShadersModule::ShutdownModule()

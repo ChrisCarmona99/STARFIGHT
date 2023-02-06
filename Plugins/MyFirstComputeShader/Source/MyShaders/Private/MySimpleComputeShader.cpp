@@ -60,6 +60,7 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
+
 	// (DEC & DEF): 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -67,6 +68,7 @@ public:
 
 		return true;
 	}
+
 	// (DEC & DEF): 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -102,7 +104,8 @@ private:
 // This will tell the engine to create the shader and where the shader entry point is:
 // 
 //                            ShaderType                            ShaderPath                     Shader function name    Type
-IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/MyShadersShaders/MySimpleComputeShader.usf", "MySimpleComputeShader", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/MyShaders/MySimpleComputeShader.usf", "MySimpleComputeShader", SF_Compute);
+//IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/Shaders/Private/MySimpleComputeShader.usf", "MySimpleComputeShader", SF_Compute);
 
 
 
