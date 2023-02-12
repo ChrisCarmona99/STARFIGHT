@@ -14,10 +14,16 @@
 DECLARE_STATS_GROUP(TEXT("MySimpleComputeShader"), STATGROUP_MySimpleComputeShader, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("MySimpleComputeShader Execute"), STAT_MySimpleComputeShader_Execute, STATGROUP_MySimpleComputeShader);
 
-// 
-// This class carries our parameter declarations and acts as the bridge between cpp and HLSL.
-// 
-// DEC & DEF in the .cpp file because this class is only used in 'DispatchRenderThread'
+
+
+/* 
+* 
+* 
+* This class carries our parameter declarations and acts as the bridge between cpp and HLSL.
+* 
+* 
+* DEC & DEF in the .cpp file because this class is only used in 'DispatchRenderThread'
+*/
 class MYSHADERS_API FMySimpleComputeShader : public FGlobalShader
 {
 public:
@@ -101,11 +107,30 @@ private:
 
 
 
+
+
+
+
+
+
+
+
+
+
 // This will tell the engine to create the shader and where the shader entry point is:
 // 
 //                            ShaderType                            ShaderPath                     Shader function name    Type
-IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/MyShaders/MySimpleComputeShader.usf", "MySimpleComputeShader", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/Shader_File_Path/MySimpleComputeShader.usf", "MySimpleComputeShader", SF_Compute);
 //IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/Shaders/Private/MySimpleComputeShader.usf", "MySimpleComputeShader", SF_Compute);
+
+
+
+
+
+
+
+
+
 
 
 
@@ -115,6 +140,7 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 														   FMySimpleComputeShaderDispatchParams Params, 
 														   TFunction<void(int OutputVal)> AsyncCallback) 
 {
+	UE_LOG(LogTemp, Warning, TEXT("DispatchRenderThread STARTED (MAIN FUNCTION)"));
 	
 	FRDGBuilder GraphBuilder(RHICmdList);
 

@@ -22,6 +22,8 @@ struct MYSHADERS_API FMySimpleComputeShaderDispatchParams
 
 
 
+
+
 // This is a public interface that we define so outside code can invoke our compute shader.
 // 
 // CALLED IN: UMySimpleComputeShaderLibrary_AsyncExecution
@@ -32,14 +34,16 @@ public:
 
 	// (DEC & DEF): Dispatches this shader. Can be called from any thread
 	static void Dispatch(FMySimpleComputeShaderDispatchParams Params,
-		TFunction<void(int OutputVal)> AsyncCallback)
+						 TFunction<void(int OutputVal)> AsyncCallback)
 	{
 		if (IsInRenderingThread())
 		{
+			UE_LOG(LogTemp, Warning, TEXT("IsInRenderingThread == TRUE"));
 			DispatchRenderThread(GetImmediateCommandList_ForRenderCommand(), Params, AsyncCallback);
 		}
 		else
 		{
+			UE_LOG(LogTemp, Warning, TEXT("IsInRenderingThread == FALSE"));
 			DispatchGameThread(Params, AsyncCallback);
 		}
 	}
@@ -56,11 +60,13 @@ public:
 	static void DispatchGameThread(FMySimpleComputeShaderDispatchParams Params,
 								   TFunction<void(int OutputVal)> AsyncCallback)
 	{
-		auto renderCommand_LAMBDA = [Params, AsyncCallback](FRHICommandListImmediate& RHICmdList)
-		{
-			DispatchRenderThread(RHICmdList, Params, AsyncCallback);
-		};
-		ENQUEUE_RENDER_COMMAND(SceneDrawCompletion)(renderCommand_LAMBDA);
+		UE_LOG(LogTemp, Warning, TEXT("CALLING ENQUEUE_RENDER_COMMAND"));
+		ENQUEUE_RENDER_COMMAND(SceneDrawCompletion)(
+			[Params, AsyncCallback](FRHICommandListImmediate& RHICmdList)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("DispatchRenderThread CALLED"));
+				DispatchRenderThread(RHICmdList, Params, AsyncCallback);
+			});
 	}
 
 
@@ -70,12 +76,22 @@ public:
 
 
 
+
+
+
+
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMySimpleComputeShaderLibrary_AsyncExecutionCompleted, const int, Value);
 
 
 
-
-
+/* 
+* 
+* 
+* This Class is used to create a Blueprint Callable version of our Dispath Function, and call Dispatch:
+* 
+* s
+*/
 UCLASS() // Change the _API to match your project
 class MYSHADERS_API UMySimpleComputeShaderLibrary_AsyncExecution : public UBlueprintAsyncActionBase
 {
@@ -92,12 +108,13 @@ public:
 		Params.Input[1] = Arg2;
 
 		// Dispatch the compute shader and wait until it completes
-		auto broadcast_LAMBDA = [this](int OutputVal)
-		{
-			this->Completed.Broadcast(OutputVal);
-		};
-		FMySimpleComputeShaderInterface::Dispatch(Params, broadcast_LAMBDA);
+		FMySimpleComputeShaderInterface::Dispatch(Params, [this](int OutputVal)
+												  {
+												       this->Completed.Broadcast(OutputVal);
+												  }
+												 );
 	}
+
 
 
 	//  (DEC & DEF): 

@@ -17,5 +17,7 @@ class STARFIGHT_API UMyFirstComputeShader_TEST : public UBlueprintFunctionLibrar
 
 public:
 	UFUNCTION(BlueprintCallable)
-		static int CALL_TEST_COMPUTE_SHADER(int a, int b);
+		int CALL_TEST_COMPUTE_SHADER(int a, int b);
+
+	int OutputTmp = 0;
 };
