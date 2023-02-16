@@ -62,6 +62,7 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, Input)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, Output)
 
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, mapChunkSize)
 		SHADER_PARAMETER_SCALAR_ARRAY(float, testArray, [100]) // On the shader side: float testArray[100];
 
 

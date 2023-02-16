@@ -77,7 +77,7 @@ public:
 
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMySimpleComputeShaderLibrary_AsyncExecutionCompleted, const int, Value);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMySimpleComputeShaderLibrary_AsyncExecutionCompleted, const int, Value);  // DEFINES WHAT OUR OUTPUT VALUE WILL BE (I think)
 
 
 
@@ -95,7 +95,19 @@ class MYSHADERS_API UMySimpleComputeShaderLibrary_AsyncExecution : public UBluep
 
 public:
 
-	// (DEC & DEF): Execute the actual load
+	// Instantiate an object that can be used to "broadcast" whatever value(s) we want from our shader to be seen from the editor (I think):
+	UPROPERTY(BlueprintAssignable)
+		FOnMySimpleComputeShaderLibrary_AsyncExecutionCompleted Completed;
+
+
+	// SHADER INPUTS:
+	int Arg1;
+	int Arg2;
+
+	int mapChunkSize;
+
+
+
 	virtual void Activate() override 
 	{
 		// Create a dispatch parameters struct and fill the input array with our args
@@ -112,27 +124,15 @@ public:
 
 
 
-	//  (DEC & DEF): 
 	UFUNCTION(BlueprintCallable, meta = (BlueprintInternalUseOnly = "true", Category = "ComputeShader", WorldContext = "WorldContextObject"))
-	static UMySimpleComputeShaderLibrary_AsyncExecution* ExecuteBaseComputeShader(UObject* WorldContextObject, int Arg1, int Arg2) 
+	static UMySimpleComputeShaderLibrary_AsyncExecution* ExecuteBaseComputeShader(UObject* WorldContextObject, int Arg1, int Arg2, int mapChunkSize) 
 	{
 		UMySimpleComputeShaderLibrary_AsyncExecution* Action = NewObject<UMySimpleComputeShaderLibrary_AsyncExecution>();
 		Action->Arg1 = Arg1;
 		Action->Arg2 = Arg2;
-		Action->RegisterWithGameInstance(WorldContextObject);
+		Action->RegisterWithGameInstance(WorldContextObject); // Function inherited from `UBlueprintAsyncActionBase`
 
 		return Action;
 	}
-
-
-
-
-
-	UPROPERTY(BlueprintAssignable)
-		FOnMySimpleComputeShaderLibrary_AsyncExecutionCompleted Completed;
-
-
-	int Arg1;
-	int Arg2;
 
 };
