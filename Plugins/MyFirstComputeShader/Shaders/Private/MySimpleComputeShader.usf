@@ -1,13 +1,30 @@
 #include "/Engine/Public/Platform.ush"
 
 Buffer<int> Input;
+// Buffer<int> testArray;
 RWBuffer<int> Output;
 
+
 [numthreads(THREADS_X, THREADS_Y, THREADS_Z)]
-void MySimpleComputeShader(
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-	uint GroupIndex : SV_GroupIndex )
+void MySimpleComputeShader(uint3 DispatchThreadId : SV_DispatchThreadID,
+						   uint GroupIndex : SV_GroupIndex )
 {
 	// Outputs one number
-	Output[0] = Input[0] * Input[1];
+	// Output[0] = Input[0] * Input[1];
+
+	int a = 0;
+	int rollSize = 100000000;
+
+	// [unroll(rollSize)] for (int i = 0; i < rollSize; i++)
+	for (int i = 0; i < rollSize; i++)
+	{
+		a += 1;
+	}
+
+	//for (int j = 0; j < 100; j++)
+	//{
+	//	testArray[j] = j;
+	//}
+
+	Output[0] = a;
 }

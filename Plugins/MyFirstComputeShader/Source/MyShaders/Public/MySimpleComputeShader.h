@@ -18,6 +18,8 @@ struct MYSHADERS_API FMySimpleComputeShaderDispatchParams
 
 	int Input[2];
 	int Output;	
+
+	int testArray[100];
 };
 
 
@@ -38,12 +40,12 @@ public:
 	{
 		if (IsInRenderingThread())
 		{
-			UE_LOG(LogTemp, Warning, TEXT("IsInRenderingThread == TRUE"));
+			/*UE_LOG(LogTemp, Warning, TEXT("IsInRenderingThread == TRUE"));*/
 			DispatchRenderThread(GetImmediateCommandList_ForRenderCommand(), Params, AsyncCallback);
 		}
 		else
 		{
-			UE_LOG(LogTemp, Warning, TEXT("IsInRenderingThread == FALSE"));
+			/*UE_LOG(LogTemp, Warning, TEXT("IsInRenderingThread == FALSE"));*/
 			DispatchGameThread(Params, AsyncCallback);
 		}
 	}
@@ -69,13 +71,7 @@ public:
 			});
 	}
 
-
 };
-
-
-
-
-
 
 
 
@@ -111,8 +107,7 @@ public:
 		FMySimpleComputeShaderInterface::Dispatch(Params, [this](int OutputVal)
 												  {
 												       this->Completed.Broadcast(OutputVal);
-												  }
-												 );
+												  });
 	}
 
 
@@ -128,6 +123,10 @@ public:
 
 		return Action;
 	}
+
+
+
+
 
 	UPROPERTY(BlueprintAssignable)
 		FOnMySimpleComputeShaderLibrary_AsyncExecutionCompleted Completed;

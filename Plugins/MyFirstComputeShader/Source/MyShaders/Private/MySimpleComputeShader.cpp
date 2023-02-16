@@ -62,10 +62,12 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, Input)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, Output)
 
+		SHADER_PARAMETER_SCALAR_ARRAY(float, testArray, [100]) // On the shader side: float testArray[100];
+
 
 	END_SHADER_PARAMETER_STRUCT()
 
-public:
+//public:
 
 	// (DEC & DEF): 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -106,31 +108,10 @@ private:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 // This will tell the engine to create the shader and where the shader entry point is:
 // 
 //                            ShaderType                            ShaderPath                     Shader function name    Type
-IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/Shader_File_Path/MySimpleComputeShader.usf", "MySimpleComputeShader", SF_Compute);
-//IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/Shaders/Private/MySimpleComputeShader.usf", "MySimpleComputeShader", SF_Compute);
-
-
-
-
-
-
-
-
-
+IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/Plugins/MyFirstComputeShader/MySimpleComputeShader.usf", "MySimpleComputeShader", SF_Compute);
 
 
 
@@ -166,13 +147,13 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 			FMySimpleComputeShader::FParameters* PassParameters = GraphBuilder.AllocParameters<FMySimpleComputeShader::FParameters>();
 
 			const void* RawData = (void*)Params.Input;
-			int NumInputs = 2;
+			int NumInputs = 2; // SET NUMBER OF INPUTS TO COMPUTE SHADER
 			int InputSize = sizeof(int);
 			FRDGBufferRef InputBuffer = CreateUploadBuffer(GraphBuilder, TEXT("InputBuffer"), InputSize, NumInputs, RawData, InputSize * NumInputs);
 
 			PassParameters->Input = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InputBuffer, PF_R32_SINT));
 
-			FRDGBufferRef OutputBuffer = GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateBufferDesc(sizeof(int32), 1), TEXT("OutputBuffer") );
+			FRDGBufferRef OutputBuffer = GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateBufferDesc(sizeof(int32), 1), TEXT("OutputBuffer") ); // DEFINE OUR OUTPUT BUFFER (INCLUDING HOW MANY OUTPUTS (I think))
 
 			PassParameters->Output = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutputBuffer, PF_R32_SINT));
 
