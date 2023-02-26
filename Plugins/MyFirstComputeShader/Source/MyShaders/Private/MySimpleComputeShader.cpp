@@ -16,6 +16,7 @@ DECLARE_CYCLE_STAT(TEXT("MySimpleComputeShader Execute"), STAT_MySimpleComputeSh
 
 
 
+
 /* 
 * 
 * 
@@ -62,13 +63,13 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, Input)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, Output)
 
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, mapChunkSize)
-		SHADER_PARAMETER_SCALAR_ARRAY(float, testArray, [100]) // On the shader side: float testArray[100];
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, mapChunkSize)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float>, noiseMap)
 
 
 	END_SHADER_PARAMETER_STRUCT()
 
-//public:
+public:
 
 	// (DEC & DEF): 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -109,9 +110,10 @@ private:
 
 
 
+
 // This will tell the engine to create the shader and where the shader entry point is:
 // 
-//                            ShaderType                            ShaderPath                     Shader function name    Type
+//                            ShaderType                            ShaderPath								Shader function name    Type
 IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/Plugins/MyFirstComputeShader/MySimpleComputeShader.usf", "MySimpleComputeShader", SF_Compute);
 
 
@@ -119,10 +121,11 @@ IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/Plugins/MyFirstComputeShader/M
 
 
 void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmediate& RHICmdList, 
-														   FMySimpleComputeShaderDispatchParams Params, 
+														   FMySimpleComputeShaderDispatchParams Params,
+														   InputParameterReferences InputParamRefs,
 														   TFunction<void(int OutputVal)> AsyncCallback) 
 {
-	UE_LOG(LogTemp, Warning, TEXT("DispatchRenderThread STARTED (MAIN FUNCTION)"));
+	UE_LOG(LogTemp, Warning, TEXT("DispatchRenderThread CALLED"));
 	
 	FRDGBuilder GraphBuilder(RHICmdList);
 
@@ -145,22 +148,76 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 
 		if (bIsShaderValid) 
 		{
+			// Allocate a parameter struct 'PassParameters' with a lifetime tied to graph execution
 			FMySimpleComputeShader::FParameters* PassParameters = GraphBuilder.AllocParameters<FMySimpleComputeShader::FParameters>();
 
-			const void* RawData = (void*)Params.Input;
-			int NumInputs = 2; // SET NUMBER OF INPUTS TO COMPUTE SHADER
-			int InputSize = sizeof(int);
-			FRDGBufferRef InputBuffer = CreateUploadBuffer(GraphBuilder, TEXT("InputBuffer"), InputSize, NumInputs, RawData, InputSize * NumInputs);
+			/*
+			* From here, use our FRDGBuilder instance 'GraphBuilder' to create the various buffer objects:
+			*/
+			uint32 BytesPerElement;
+			uint32 NumElements;
+			const void* InitialData;
+			uint64 InitialDataSize;
 
+
+			// Input:
+			BytesPerElement = sizeof(int);
+			NumElements = 2;
+			InitialData = (void*)Params.Input;
+			InitialDataSize = BytesPerElement * NumElements;
+
+			FRDGBufferRef InputBuffer = CreateUploadBuffer(GraphBuilder, TEXT("InputBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize);
 			PassParameters->Input = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InputBuffer, PF_R32_SINT));
 
-			FRDGBufferRef OutputBuffer = GraphBuilder.CreateBuffer( FRDGBufferDesc::CreateBufferDesc(sizeof(int32), 1), TEXT("OutputBuffer") ); // DEFINE OUR OUTPUT BUFFER (INCLUDING HOW MANY OUTPUTS (I think))
+			// mapChunkSize:
+			BytesPerElement = sizeof(int32);
+			NumElements = 1;
+			InitialData = (void*)Params.mapChunkSize;
+			InitialDataSize = BytesPerElement * NumElements;
 
+			FRDGBufferRef mapChunkSizeBuffer = CreateUploadBuffer(GraphBuilder, TEXT("mapChunkSizeBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize);
+			PassParameters->mapChunkSize= GraphBuilder.CreateSRV(FRDGBufferSRVDesc(mapChunkSizeBuffer, PF_R32_SINT));
+			
+			// Output:
+			const FRDGBufferDesc& Desc = FRDGBufferDesc::CreateBufferDesc(sizeof(int32), 1);
+
+			FRDGBufferRef OutputBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("OutputBuffer"));
 			PassParameters->Output = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutputBuffer, PF_R32_SINT));
 
 
+			// noiseMap:
+			BytesPerElement = sizeof(float);
+			NumElements = InputParamRefs.noiseMap_REF.size();
+			InitialData = (void*)Params.noiseMap;
+			InitialDataSize = BytesPerElement * NumElements;
+
+			FRDGBufferRef noiseMapBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("noiseMapBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize);
+			PassParameters->noiseMap = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(noiseMapBuffer, PF_R32_SINT));
+
+
+
+
+
+			// Get the number of groups to dispatch to our compute shader:
 			auto GroupCount = FComputeShaderUtils::GetGroupCount(FIntVector(Params.X, Params.Y, Params.Z), FComputeShaderUtils::kGolden2DGroupSize);
 			
+			/** Adds a lambda pass to the graph with an accompanied pass parameter struct.
+			*
+			*  RDG resources declared in the struct (via _RDG parameter macros) are safe to access in the lambda. The pass parameter struct
+			*  should be allocated by AllocParameters(), and once passed in, should not be mutated. It is safe to provide the same parameter
+			*  struct to multiple passes, so long as it is kept immutable. The lambda is deferred until execution unless the immediate debug
+			*  mode is enabled. All lambda captures should assume deferral of execution.
+			*
+			*  The lambda must include a single RHI command list as its parameter. The exact type of command list depends on the workload.
+			*  For example, use FRHIComputeCommandList& for Compute / AsyncCompute workloads. Raster passes should use FRHICommandList&.
+			*  Prefer not to use FRHICommandListImmediate& unless actually required.
+			*
+			*  Declare the type of GPU workload (i.e. Copy, Compute / AsyncCompute, Graphics) to the pass via the Flags argument. This is
+			*  used to determine async compute regions, render pass setup / merging, RHI transition accesses, etc. Other flags exist for
+			*  specialized purposes, like forcing a pass to never be culled (NeverCull). See ERDGPassFlags for more info.
+			*
+			*  The pass name is used by debugging / profiling tools.
+			*/
 			GraphBuilder.AddPass(RDG_EVENT_NAME("ExecuteMySimpleComputeShader"),
 								 PassParameters,
 								 ERDGPassFlags::AsyncCompute,
@@ -171,7 +228,9 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 
 
 			FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("ExecuteMySimpleComputeShaderOutput"));
+			// Adds a pass to readback contents of an RDG buffer:
 			AddEnqueueCopyPass(GraphBuilder, GPUBufferReadback, OutputBuffer, 0u);
+
 
 			auto RunnerFunc = [GPUBufferReadback, AsyncCallback](auto&& RunnerFunc) -> void 
 			{
@@ -199,6 +258,8 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 				}
 			};
 			
+
+
 			AsyncTask(ENamedThreads::ActualRenderingThread, 
 					  [RunnerFunc]() 
 					  {
@@ -213,4 +274,5 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 	}
 
 	GraphBuilder.Execute();
+	UE_LOG(LogTemp, Warning, TEXT("DispatchRenderThread FINISHED"));
 }

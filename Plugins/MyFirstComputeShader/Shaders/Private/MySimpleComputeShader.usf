@@ -1,8 +1,9 @@
 #include "/Engine/Public/Platform.ush"
 
 Buffer<int> Input;
-// Buffer<int> testArray;
 RWBuffer<int> Output;
+
+Buffer<int> mapChunkSize;
 
 
 [numthreads(THREADS_X, THREADS_Y, THREADS_Z)]
@@ -26,5 +27,5 @@ void MySimpleComputeShader(uint3 DispatchThreadId : SV_DispatchThreadID,
 	//	testArray[j] = j;
 	//}
 
-	Output[0] = a;
+	Output[0] = mapChunkSize[0];
 }

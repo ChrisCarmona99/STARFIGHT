@@ -23,6 +23,8 @@ FGeneratedMeshData UGenerateTerrainBPCallable::GenerateProceduralMeshDataNEW(con
 	// Calculates correct number of vertic  es for our 'vertices' array:
 	int32 verticesPerLine = ((mapChunkSize - 1) / LODincrement) + 1;
 
+
+	// MAKE HLSL:
 	for (int i = 0; i < mapChunkSize * mapChunkSize; i++)
 	{
 		// Define our proportionate 'x' and 'y' indices so that we can map our 1D vector too an 'x' and 'y' coordinate for our vertex

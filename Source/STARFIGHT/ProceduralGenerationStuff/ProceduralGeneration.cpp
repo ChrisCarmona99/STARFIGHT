@@ -48,6 +48,7 @@ void ProceduralGeneration::GenerateNoiseMap(std::vector<float>& noiseMap, const 
 	float halfWidth = mapChunkSize / 2.0f;
 	float halfHeight = mapChunkSize / 2.0f;
 
+	// MAKE HLSL:
 	for (int i1 = 0; i1 < mapChunkSize * mapChunkSize; i1++)
 	{
 		int x = i1 % mapChunkSize;
@@ -91,6 +92,7 @@ void ProceduralGeneration::GenerateNoiseMap(std::vector<float>& noiseMap, const 
 
 void ProceduralGeneration::ApplyFalloffMap(std::vector<float>& noiseMap, const int32& mapChunkSize, float& a, float& b, float& c)
 {
+
 	for (int i = 0; i < mapChunkSize * mapChunkSize; i++)
 	{
 		int xi = i % mapChunkSize;

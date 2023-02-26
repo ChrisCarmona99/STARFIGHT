@@ -15,9 +15,11 @@ int UMyFirstComputeShader_TEST::CALL_TEST_COMPUTE_SHADER(int a, int b, int mapCh
     Params.Input[0] = a;
     Params.Input[1] = b;
 
+    InputParameterReferences InputParamRefs;
+
   
     // Executes the compute shader and calls the TFunction (the lambda) when complete.
-    FMySimpleComputeShaderInterface::Dispatch(Params, [this](int OutputVal) {
+    FMySimpleComputeShaderInterface::Dispatch(Params, InputParamRefs, [this](int OutputVal) {
         	// Called when the results are back from the GPU.
             OutputTmp = OutputVal;
         });
