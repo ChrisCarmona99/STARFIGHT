@@ -4,6 +4,8 @@ Buffer<int> Input;
 RWBuffer<int> Output;
 
 Buffer<int> mapChunkSize;
+RWStructuredBuffer<float> noiseMap;
+RWStructuredBuffer<float> TestFloat;
 
 
 [numthreads(THREADS_X, THREADS_Y, THREADS_Z)]
@@ -13,19 +15,14 @@ void MySimpleComputeShader(uint3 DispatchThreadId : SV_DispatchThreadID,
 	// Outputs one number
 	// Output[0] = Input[0] * Input[1];
 
-	int a = 0;
 	int rollSize = 100000000;
 
 	// [unroll(rollSize)] for (int i = 0; i < rollSize; i++)
-	for (int i = 0; i < rollSize; i++)
+	for (int i = 1; i < mapChunkSize[0] + 1; i++)
 	{
-		a += 1;
+		noiseMap[i] = i * 10;
 	}
 
-	//for (int j = 0; j < 100; j++)
-	//{
-	//	testArray[j] = j;
-	//}
-
-	Output[0] = mapChunkSize[0];
+	Output[0] = 250;
+	TestFloat[0] = 1.234;
 }

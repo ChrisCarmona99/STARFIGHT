@@ -10,12 +10,8 @@
 
 struct MYSHADERS_API FMySimpleComputeShaderDispatchParams
 {
-	FMySimpleComputeShaderDispatchParams(int x, int y, int z)//, int mapChunkSize) 
-	: X(x), Y(y), Z(z) 
-	{
-		//PARAMS_noiseMap = new int32[mapChunkSize * mapChunkSize];
-	}
-
+	FMySimpleComputeShaderDispatchParams(int x, int y, int z)
+	: X(x), Y(y), Z(z) {}
 
 	int X;
 	int Y;
@@ -26,6 +22,7 @@ struct MYSHADERS_API FMySimpleComputeShaderDispatchParams
 
 	int32 mapChunkSize[1];
 	float* noiseMap;
+	float TestFloat[1];
 };
 
 
@@ -36,6 +33,16 @@ struct InputParameterReferences
 
 	int32 mapChunkSize_REF;
 	std::vector<float> noiseMap_REF;
+};
+
+
+struct TestStruct
+{
+	TestStruct() {}
+
+	int32 A;
+	float B;
+	float* C;
 };
 
 
@@ -51,33 +58,28 @@ public:
 	// (DEC & DEF): Dispatches this shader. Can be called from any thread
 	static void Dispatch(FMySimpleComputeShaderDispatchParams Params,
 						 InputParameterReferences InputParamRefs,
-						 TFunction<void(int OutputVal)> AsyncCallback)
+						 TFunction<void(int OutputVal, float noiseMap, float TestFloat)> AsyncCallback)
 	{
 		if (IsInRenderingThread())
 		{
-			/*UE_LOG(LogTemp, Warning, TEXT("IsInRenderingThread == TRUE"));*/
 			DispatchRenderThread(GetImmediateCommandList_ForRenderCommand(), Params, InputParamRefs, AsyncCallback);
 		}
 		else
 		{
-			/*UE_LOG(LogTemp, Warning, TEXT("IsInRenderingThread == FALSE"));*/
 			DispatchGameThread(Params, InputParamRefs, AsyncCallback);
 		}
 	}
 
-
-
-	// (DEC): Executes this shader on the render thread
-	// (2/2 in .CPP file) 
+	// Executes this shader on the render thread:
 	static void DispatchRenderThread(FRHICommandListImmediate& RHICmdList,
 									 FMySimpleComputeShaderDispatchParams Params,
 									 InputParameterReferences InputParamRefs,
-									 TFunction<void(int OutputVal)> AsyncCallback);
+									 TFunction<void(int OutputVal, float noiseMap, float TestFloat)> AsyncCallback);
 
-	// (DEC & DEF): Executes this shader on the render thread from the game thread via EnqueueRenderThreadCommand
+	// Executes this shader on the render thread from the game thread via EnqueueRenderThreadCommand:
 	static void DispatchGameThread(FMySimpleComputeShaderDispatchParams Params,
 								   InputParameterReferences InputParamRefs,
-								   TFunction<void(int OutputVal)> AsyncCallback)
+								   TFunction<void(int OutputVal, float noiseMap, float TestFloat)> AsyncCallback)
 	{
 		ENQUEUE_RENDER_COMMAND(SceneDrawCompletion)(
 			[Params, InputParamRefs, AsyncCallback](FRHICommandListImmediate& RHICmdList)
@@ -90,18 +92,14 @@ public:
 
 
 
-
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMySimpleComputeShaderLibrary_AsyncExecutionCompleted, const int, Value);  // DEFINES WHAT OUR OUTPUT VALUE WILL BE (I think)
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnMySimpleComputeShaderLibrary_AsyncExecutionCompleted, const int, Value, const float, noiseMap, const float, TestFloat);  // DEFINES OUR BLUEPRINT FUNCTIONS OUTPUT VALUES
 
 
 
 /* 
 * 
-* 
 * This Class is used to create a Blueprint Callable version of our Dispath Function, and call Dispatch:
 * 
-* s
 */
 UCLASS() // Change the _API to match your project
 class MYSHADERS_API UMySimpleComputeShaderLibrary_AsyncExecution : public UBlueprintAsyncActionBase
@@ -140,13 +138,14 @@ public:
 		Params.Input[1] = _Arg2;
 
 		Params.mapChunkSize[0] = _mapChunkSize;
-		Params.noiseMap = &_noiseMap[0]; // May not work... lol test this out
+		Params.noiseMap = &_noiseMap[0];
+		Params.TestFloat[0] = 2.465;
 
 
 		// Dispatch the compute shader and wait until it completes
-		FMySimpleComputeShaderInterface::Dispatch(Params, InputParamRefs, [this](int OutputVal)
+		FMySimpleComputeShaderInterface::Dispatch(Params, InputParamRefs, [this](int OutputVal, float noiseMap, float TestFloat)
 												  {
-												       this->Completed.Broadcast(OutputVal);
+												       this->Completed.Broadcast(OutputVal, noiseMap, TestFloat);
 												  });
 		UE_LOG(LogTemp, Warning, TEXT("    3: 'Activate' FINISHED"));
 	}
@@ -162,11 +161,11 @@ public:
 		Action->_Arg1 = Arg1;
 		Action->_Arg2 = Arg2;
 		Action->_mapChunkSize = mapChunkSize;
-		std::vector<float> Test_noiseMap(mapChunkSize * mapChunkSize, 1); // Make a mapChunkSize * mapChunkSize vector filled with 1's
+		std::vector<float> Test_noiseMap(mapChunkSize * mapChunkSize, 1);
 		Action->_noiseMap = Test_noiseMap;
 
 		// Implicitly calls `Dispatch`:
-		Action->RegisterWithGameInstance(WorldContextObject); // Function inherited from `UBlueprintAsyncActionBase`
+		Action->RegisterWithGameInstance(WorldContextObject);
 		UE_LOG(LogTemp, Warning, TEXT("    1: Returning 'Action'"));
 		return Action; /* CALLS Activate() */
 	}

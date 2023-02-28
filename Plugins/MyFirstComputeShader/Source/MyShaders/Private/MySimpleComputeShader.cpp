@@ -65,6 +65,7 @@ public:
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, mapChunkSize)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float>, noiseMap)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float>, TestFloat)
 
 
 	END_SHADER_PARAMETER_STRUCT()
@@ -123,7 +124,7 @@ IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/Plugins/MyFirstComputeShader/M
 void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmediate& RHICmdList, 
 														   FMySimpleComputeShaderDispatchParams Params,
 														   InputParameterReferences InputParamRefs,
-														   TFunction<void(int OutputVal)> AsyncCallback) 
+														   TFunction<void(int OutputVal, float noiseMap, float TestFloat)> AsyncCallback) 
 {
 	UE_LOG(LogTemp, Warning, TEXT("DispatchRenderThread CALLED"));
 	
@@ -195,29 +196,21 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 			PassParameters->noiseMap = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(noiseMapBuffer, PF_R32_SINT));
 
 
+			// TestFloat:
+			BytesPerElement = sizeof(float);
+			NumElements = 1;
+			InitialData = (void*)Params.TestFloat;
+			InitialDataSize = BytesPerElement * NumElements;
+
+			FRDGBufferRef TestFloatBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("TestFloatBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize);
+			PassParameters->TestFloat = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(TestFloatBuffer, PF_R32_SINT));
 
 
 
 			// Get the number of groups to dispatch to our compute shader:
 			auto GroupCount = FComputeShaderUtils::GetGroupCount(FIntVector(Params.X, Params.Y, Params.Z), FComputeShaderUtils::kGolden2DGroupSize);
 			
-			/** Adds a lambda pass to the graph with an accompanied pass parameter struct.
-			*
-			*  RDG resources declared in the struct (via _RDG parameter macros) are safe to access in the lambda. The pass parameter struct
-			*  should be allocated by AllocParameters(), and once passed in, should not be mutated. It is safe to provide the same parameter
-			*  struct to multiple passes, so long as it is kept immutable. The lambda is deferred until execution unless the immediate debug
-			*  mode is enabled. All lambda captures should assume deferral of execution.
-			*
-			*  The lambda must include a single RHI command list as its parameter. The exact type of command list depends on the workload.
-			*  For example, use FRHIComputeCommandList& for Compute / AsyncCompute workloads. Raster passes should use FRHICommandList&.
-			*  Prefer not to use FRHICommandListImmediate& unless actually required.
-			*
-			*  Declare the type of GPU workload (i.e. Copy, Compute / AsyncCompute, Graphics) to the pass via the Flags argument. This is
-			*  used to determine async compute regions, render pass setup / merging, RHI transition accesses, etc. Other flags exist for
-			*  specialized purposes, like forcing a pass to never be culled (NeverCull). See ERDGPassFlags for more info.
-			*
-			*  The pass name is used by debugging / profiling tools.
-			*/
+			// Adds a lambda pass to the graph with a runtime-generated parameter struct:
 			GraphBuilder.AddPass(RDG_EVENT_NAME("ExecuteMySimpleComputeShader"),
 								 PassParameters,
 								 ERDGPassFlags::AsyncCompute,
@@ -228,28 +221,46 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 
 
 			FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("ExecuteMySimpleComputeShaderOutput"));
+
 			// Adds a pass to readback contents of an RDG buffer:
+			AddEnqueueCopyPass(GraphBuilder, GPUBufferReadback, TestFloatBuffer, 0u);
 			AddEnqueueCopyPass(GraphBuilder, GPUBufferReadback, OutputBuffer, 0u);
+			AddEnqueueCopyPass(GraphBuilder, GPUBufferReadback, noiseMapBuffer, 0u);
 
 
+			// Define's a lambda for our Compute Shader that will grab the output from our 'GPUBufferReadback' and populate our output variables with it, or call our async func again to wait for our GPU to be done:
 			auto RunnerFunc = [GPUBufferReadback, AsyncCallback](auto&& RunnerFunc) -> void 
 			{
-				if (GPUBufferReadback->IsReady()) {
+				// If our GPU readback is complete, then unlock the buffer, read from it, set our output variables with the contents in the buffer, and execute this all on the main thread...
+				if (GPUBufferReadback->IsReady()) 
+				{
+					float* BUFFER = (float*)GPUBufferReadback->Lock(10); // This returns a pointer to the first index in our Buffer. If we've returned an array, just increment over the memory to access the rest of the elements.
 
-					int32* Buffer = (int32*)GPUBufferReadback->Lock(1);
-					int OutVal = Buffer[0];
+					int OutVal = -1.0;
+					float* noiseMap = BUFFER;
+					float TestFloat = -1.0;
+
+					// Just used to debug our BUFFER:
+					for (int i = 0; i < 15; i++)
+					{
+						int index = i;
+						float V = *(BUFFER + i);
+						UE_LOG(LogTemp, Warning, TEXT("        index == %d   |   V == %f"), index, V);
+					}
 
 					GPUBufferReadback->Unlock();
 
 					AsyncTask(ENamedThreads::GameThread, 
-							  [AsyncCallback, OutVal]() 
+							  [AsyncCallback, OutVal, noiseMap, TestFloat]()
 							  {
-							      AsyncCallback(OutVal);
+							      AsyncCallback(OutVal, *noiseMap, TestFloat);
 							  });
 
 					delete GPUBufferReadback;
 				}
-				else {
+				// If our GPU readback is NOT complete, then just execute our 'RunnerFunc' AGAIN on our Rendering thread (non-game thread) again and see if it will be ready by the next execution:
+				else 
+				{
 					AsyncTask(ENamedThreads::ActualRenderingThread, 
 							  [RunnerFunc]() 
 							  {
@@ -259,17 +270,17 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 			};
 			
 
-
+			// Call our 'RunnerFunc' asynchronously for the FIRST TIME on our Rendering thread ('RunnerFunc' will keep calling this Async func again and again until the GPU has outputed its contents into our 'GPUBufferReadback':
 			AsyncTask(ENamedThreads::ActualRenderingThread, 
 					  [RunnerFunc]() 
 					  {
-					      RunnerFunc(RunnerFunc);
+					      RunnerFunc(RunnerFunc); //Call RunnerFunc and pass an instance of itself so that it can recursively call itself within another 'AsyncTask' call if the GPU is not done yet
 					  });
 
 		}
 		else {
 			// We silently exit here as we don't want to crash the game if the shader is not found or has an error.
-
+			UE_LOG(LogTemp, Warning, TEXT("COMPUTE SHADER SILENTLY EXITED... This is most likely due to an error within the GPU during execution."));
 		}
 	}
 
