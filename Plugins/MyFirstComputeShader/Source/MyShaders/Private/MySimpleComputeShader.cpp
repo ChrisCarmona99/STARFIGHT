@@ -14,7 +14,7 @@
 DECLARE_STATS_GROUP(TEXT("MySimpleComputeShader"), STATGROUP_MySimpleComputeShader, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("MySimpleComputeShader Execute"), STAT_MySimpleComputeShader_Execute, STATGROUP_MySimpleComputeShader);
 
-
+#include <chrono>
 
 
 /* 
@@ -60,12 +60,12 @@ public:
 		// SHADER_PARAMETER_STRUCT_REF(FMyCustomStruct, MyCustomStruct)
 
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, Input)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, Output)
+		//SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, Input)
+		//SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>, Output)
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, mapChunkSize)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float>, noiseMap)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float>, TestFloat)
+		//SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float>, noiseMap)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, noiseMap)
 
 
 	END_SHADER_PARAMETER_STRUCT()
@@ -124,10 +124,14 @@ IMPLEMENT_GLOBAL_SHADER(FMySimpleComputeShader, "/Plugins/MyFirstComputeShader/M
 void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmediate& RHICmdList, 
 														   FMySimpleComputeShaderDispatchParams Params,
 														   InputParameterReferences InputParamRefs,
-														   TFunction<void(int OutputVal, float noiseMap, float TestFloat)> AsyncCallback) 
+														   TFunction<void(TArray<float> noiseMap)> AsyncCallback) 
 {
 	UE_LOG(LogTemp, Warning, TEXT("DispatchRenderThread CALLED"));
-	
+	FDateTime CLOCK;
+	FDateTime start = CLOCK.Now();
+	FString start_string = start.ToString();
+	//UE_LOG(LogTemp, Warning, TEXT("START TIME == %s"), start_string);
+
 	FRDGBuilder GraphBuilder(RHICmdList);
 
 	// Not too sure why this pair of brackets starting on the next line are here, but I think there may be a mutex lock within one of these 4 macros
@@ -160,7 +164,7 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 			const void* InitialData;
 			uint64 InitialDataSize;
 
-
+			/*
 			// Input:
 			BytesPerElement = sizeof(int);
 			NumElements = 2;
@@ -170,30 +174,12 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 			FRDGBufferRef InputBuffer = CreateUploadBuffer(GraphBuilder, TEXT("InputBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize);
 			PassParameters->Input = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InputBuffer, PF_R32_SINT));
 
-			// mapChunkSize:
-			BytesPerElement = sizeof(int32);
-			NumElements = 1;
-			InitialData = (void*)Params.mapChunkSize;
-			InitialDataSize = BytesPerElement * NumElements;
-
-			FRDGBufferRef mapChunkSizeBuffer = CreateUploadBuffer(GraphBuilder, TEXT("mapChunkSizeBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize);
-			PassParameters->mapChunkSize= GraphBuilder.CreateSRV(FRDGBufferSRVDesc(mapChunkSizeBuffer, PF_R32_SINT));
 			
 			// Output:
 			const FRDGBufferDesc& Desc = FRDGBufferDesc::CreateBufferDesc(sizeof(int32), 1);
 
 			FRDGBufferRef OutputBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("OutputBuffer"));
 			PassParameters->Output = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutputBuffer, PF_R32_SINT));
-
-
-			// noiseMap:
-			BytesPerElement = sizeof(float);
-			NumElements = InputParamRefs.noiseMap_REF.size();
-			InitialData = (void*)Params.noiseMap;
-			InitialDataSize = BytesPerElement * NumElements;
-
-			FRDGBufferRef noiseMapBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("noiseMapBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize);
-			PassParameters->noiseMap = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(noiseMapBuffer, PF_R32_SINT));
 
 
 			// TestFloat:
@@ -204,12 +190,42 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 
 			FRDGBufferRef TestFloatBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("TestFloatBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize);
 			PassParameters->TestFloat = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(TestFloatBuffer, PF_R32_SINT));
+			*/
+
+			// mapChunkSize:
+			BytesPerElement = sizeof(int32);
+			NumElements = 1;
+			InitialData = (void*)Params.mapChunkSize;
+			InitialDataSize = BytesPerElement * NumElements;
+
+			FRDGBufferRef mapChunkSizeBuffer = CreateUploadBuffer(GraphBuilder, TEXT("mapChunkSizeBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize);
+			PassParameters->mapChunkSize = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(mapChunkSizeBuffer, PF_R32_SINT));
+
+			// noiseMap:
+			/*BytesPerElement = sizeof(float);
+			NumElements = InputParamRefs.noiseMap_REF.size();
+			InitialData = (void*)Params.noiseMap;
+			InitialDataSize = BytesPerElement * NumElements;
+
+			FRDGBufferRef noiseMapBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("noiseMapBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize);
+			PassParameters->noiseMap = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(noiseMapBuffer, PF_R32_SINT));*/
+
+
+			NumElements = InputParamRefs.mapChunkSize_REF * InputParamRefs.mapChunkSize_REF;
+			UE_LOG(LogTemp, Warning, TEXT("NumElements == %d"), NumElements);
+			const FRDGBufferDesc& Desc = FRDGBufferDesc::CreateBufferDesc(sizeof(float), NumElements);
+
+			FRDGBufferRef noiseMapBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("noiseMapBuffer"));
+			PassParameters->noiseMap = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(noiseMapBuffer, PF_R32_SINT));
+
+
 
 
 
 			// Get the number of groups to dispatch to our compute shader:
-			auto GroupCount = FComputeShaderUtils::GetGroupCount(FIntVector(Params.X, Params.Y, Params.Z), FComputeShaderUtils::kGolden2DGroupSize);
-			
+			FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(FIntVector(Params.X, Params.Y, Params.Z), FComputeShaderUtils::kGolden2DGroupSize);
+			UE_LOG(LogTemp, Warning, TEXT("    GroupCount == %s"), *GroupCount.ToString());
+
 			// Adds a lambda pass to the graph with a runtime-generated parameter struct:
 			GraphBuilder.AddPass(RDG_EVENT_NAME("ExecuteMySimpleComputeShader"),
 								 PassParameters,
@@ -223,37 +239,53 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 			FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("ExecuteMySimpleComputeShaderOutput"));
 
 			// Adds a pass to readback contents of an RDG buffer:
-			AddEnqueueCopyPass(GraphBuilder, GPUBufferReadback, TestFloatBuffer, 0u);
-			AddEnqueueCopyPass(GraphBuilder, GPUBufferReadback, OutputBuffer, 0u);
 			AddEnqueueCopyPass(GraphBuilder, GPUBufferReadback, noiseMapBuffer, 0u);
 
 
 			// Define's a lambda for our Compute Shader that will grab the output from our 'GPUBufferReadback' and populate our output variables with it, or call our async func again to wait for our GPU to be done:
-			auto RunnerFunc = [GPUBufferReadback, AsyncCallback](auto&& RunnerFunc) -> void 
+			auto RunnerFunc = [GPUBufferReadback, InputParamRefs, AsyncCallback](auto&& RunnerFunc) -> void
 			{
 				// If our GPU readback is complete, then unlock the buffer, read from it, set our output variables with the contents in the buffer, and execute this all on the main thread...
 				if (GPUBufferReadback->IsReady()) 
 				{
-					float* BUFFER = (float*)GPUBufferReadback->Lock(10); // This returns a pointer to the first index in our Buffer. If we've returned an array, just increment over the memory to access the rest of the elements.
+					//int vertexCount = InputParamRefs.mapChunkSize_REF * InputParamRefs.mapChunkSize_REF;
+					//uint32 ByteCount = sizeof(float) * vertexCount;
 
-					int OutVal = -1.0;
+					float* BUFFER = (float*)GPUBufferReadback->Lock(1); // This returns a pointer to the first index in our Buffer. If we've returned an array, just increment over the memory to access the rest of the elements.
+					/*std::vector<float> TEST(10, 1);
+					float* BUFFER = &TEST[0];*/
 					float* noiseMap = BUFFER;
-					float TestFloat = -1.0;
+
 
 					// Just used to debug our BUFFER:
-					for (int i = 0; i < 15; i++)
+					for (int i = 0; i < 20; i++)
 					{
 						int index = i;
 						float V = *(BUFFER + i);
 						UE_LOG(LogTemp, Warning, TEXT("        index == %d   |   V == %f"), index, V);
 					}
 
+
+					/*std::vector<float> noiseMap_Vector(BUFFER, BUFFER + 15);
+
+					TArray<float> noiseMap_TArray;
+					for (auto elem : noiseMap_Vector)
+					{
+						noiseMap_TArray.Add(elem);
+					}*/
+
+					TArray<float> noiseMap_TArray;
+					for (int i = 0; i < 20; i++) // get the last 30 elements
+					{
+						UE_LOG(LogTemp, Warning, TEXT("        BUFFER + i == %f"), *(BUFFER + i));
+						noiseMap_TArray.Add( *(BUFFER + i) );
+					}
 					GPUBufferReadback->Unlock();
 
 					AsyncTask(ENamedThreads::GameThread, 
-							  [AsyncCallback, OutVal, noiseMap, TestFloat]()
+							  [AsyncCallback, noiseMap_TArray]()
 							  {
-							      AsyncCallback(OutVal, *noiseMap, TestFloat);
+							      AsyncCallback(noiseMap_TArray);
 							  });
 
 					delete GPUBufferReadback;
@@ -268,7 +300,6 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 							  });
 				}
 			};
-			
 
 			// Call our 'RunnerFunc' asynchronously for the FIRST TIME on our Rendering thread ('RunnerFunc' will keep calling this Async func again and again until the GPU has outputed its contents into our 'GPUBufferReadback':
 			AsyncTask(ENamedThreads::ActualRenderingThread, 
@@ -286,4 +317,7 @@ void FMySimpleComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 
 	GraphBuilder.Execute();
 	UE_LOG(LogTemp, Warning, TEXT("DispatchRenderThread FINISHED"));
+	
+
+	UE_LOG(LogTemp, Warning, TEXT("FUNCTION DURATION == "));
 }

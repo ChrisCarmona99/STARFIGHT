@@ -1,28 +1,25 @@
 #include "/Engine/Public/Platform.ush"
 
-Buffer<int> Input;
-RWBuffer<int> Output;
 
 Buffer<int> mapChunkSize;
-RWStructuredBuffer<float> noiseMap;
-RWStructuredBuffer<float> TestFloat;
+
+// RWStructuredBuffer<float> noiseMap;
+RWBuffer<float> noiseMap;
 
 
 [numthreads(THREADS_X, THREADS_Y, THREADS_Z)]
 void MySimpleComputeShader(uint3 DispatchThreadId : SV_DispatchThreadID,
 						   uint GroupIndex : SV_GroupIndex )
 {
-	// Outputs one number
-	// Output[0] = Input[0] * Input[1];
 
-	int rollSize = 100000000;
+	int rollSize = 1000;
+	int vertexCount = mapChunkSize[0] * mapChunkSize[0];
 
-	// [unroll(rollSize)] for (int i = 0; i < rollSize; i++)
-	for (int i = 1; i < mapChunkSize[0] + 1; i++)
+	// [unroll(rollSize)]
+	for (int i = 0; i < 1000; i++)
 	{
-		noiseMap[i] = i * 10;
+		// noiseMap[i] = i;
 	}
+	// noiseMap[0] = 0;
 
-	Output[0] = 250;
-	TestFloat[0] = 1.234;
 }
