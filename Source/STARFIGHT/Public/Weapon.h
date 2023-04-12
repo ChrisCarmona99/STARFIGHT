@@ -14,7 +14,7 @@ USTRUCT(BlueprintType)
 struct FIKProperties {
 	GENERATED_BODY()
 
-		UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 		class UAnimSequence* AnimPose; // This is our base pose for the inverse kinematics
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

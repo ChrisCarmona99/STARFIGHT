@@ -59,10 +59,69 @@ struct FGeneratedMeshData {
 	}
 };
 
+
+
+USTRUCT(BlueprintType)
+struct FProceduralMeshInputs {
+	GENERATED_BODY()
+
+	// Default Constructor DECLARATION:
+	FORCEINLINE FProceduralMeshInputs();
+	//// Main Constructor DECLARATION:
+	//explicit FORCEINLINE FProceduralMeshInputs(int32 inputMeshWidth, int32 inputMeshHeight);
+
+	UPROPERTY(BlueprintReadWrite)
+		int32 mapChunkSize;
+
+	UPROPERTY(BlueprintReadWrite)
+		int32 seed;
+
+	UPROPERTY(BlueprintReadWrite)
+		FVector2D offset;
+
+	UPROPERTY(BlueprintReadWrite)
+		int32 levelOfDetail;
+
+	UPROPERTY(BlueprintReadWrite)
+		float noiseScale;
+
+	UPROPERTY(BlueprintReadWrite)
+		int octaves;
+
+	UPROPERTY(BlueprintReadWrite)
+		float persistence;
+
+	UPROPERTY(BlueprintReadWrite)
+		float lacunarity;
+
+	UPROPERTY(BlueprintReadWrite)
+		float heightMultiplier;
+
+	UPROPERTY(BlueprintReadWrite)
+		float weightCurveExponent;
+
+	UPROPERTY(BlueprintReadWrite)
+		float a;
+
+	UPROPERTY(BlueprintReadWrite)
+		float b;
+
+	UPROPERTY(BlueprintReadWrite)
+		float c;
+};
+
+
+
 // Default Constructor IMPLEMENTATION (not really needed but here for programmatic reasons...):
 FORCEINLINE FGeneratedMeshData::FGeneratedMeshData() {
 }
 
 // Main Constructor IMPLEMENTATION:
 FORCEINLINE FGeneratedMeshData::FGeneratedMeshData(const int32 inputMeshWidth, const int32 inputMeshHeight) : meshWidth(inputMeshWidth), meshHeight(inputMeshHeight) {
+}
+
+
+
+// Default Constructor IMPLEMENTATION (not really needed but here for programmatic reasons...):
+FORCEINLINE FProceduralMeshInputs::FProceduralMeshInputs() {
 }

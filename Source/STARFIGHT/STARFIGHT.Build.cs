@@ -9,7 +9,7 @@ public class STARFIGHT : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
         //PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "ProceduralMeshComponent" });
-        PublicDependencyModuleNames.AddRange(new string[] { "MyShaders", "MyFirstComputeShader", "Core", "CoreUObject", "Engine", "InputCore", "ProceduralMeshComponent" });
+        PublicDependencyModuleNames.AddRange(new string[] { "MyShaders", "MyFirstComputeShader", "ShaderModule", "ProceduralTerrainGeneration", "Core", "CoreUObject", "Engine", "InputCore", "ProceduralMeshComponent", "RenderCore" });
 
         PrivateDependencyModuleNames.AddRange(new string[] {  });
 

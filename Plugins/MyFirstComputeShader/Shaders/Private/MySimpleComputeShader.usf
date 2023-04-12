@@ -5,21 +5,28 @@ Buffer<int> mapChunkSize;
 
 // RWStructuredBuffer<float> noiseMap;
 RWBuffer<float> noiseMap;
+RWBuffer<uint3> indexArray;
 
 
-[numthreads(THREADS_X, THREADS_Y, THREADS_Z)]
-void MySimpleComputeShader(uint3 DispatchThreadId : SV_DispatchThreadID,
-						   uint GroupIndex : SV_GroupIndex )
+
+[numthreads(1024, 1, 1)]
+void MySimpleComputeShader
+	   (
+		uint3 GroupID : SV_GroupID, // The index for a particular thread group as an (X, Y, Z) coordinate index
+		uint GroupIndex : SV_GroupIndex,  // Just another index for a specific thread group but "flattened" into a linear dimension (see notes on how this is calculated)
+		uint3 GroupThreadID : SV_GroupThreadID,  // The index of the current thread within the current thread group as an (X, Y, Z) coordinate index
+		uint3 DispatchThreadId : SV_DispatchThreadID  // The index of the current thread within the ENTIRE dispatch call... so basically every thread within every thread group!
+	   ) 
 {
+	uint3 NUM_THREADS = uint3(1024, 1, 1);
 
 	int rollSize = 1000;
 	int vertexCount = mapChunkSize[0] * mapChunkSize[0];
 
 	// [unroll(rollSize)]
-	for (int i = 0; i < 1000; i++)
-	{
-		// noiseMap[i] = i;
-	}
-	// noiseMap[0] = 0;
 
+	
+	uint threadIndex = DispatchThreadId.z * NUM_THREADS.x * NUM_THREADS.y + DispatchThreadId.y * NUM_THREADS.x + DispatchThreadId.x;
+		
+	noiseMap[threadIndex] = (float)threadIndex;
 }

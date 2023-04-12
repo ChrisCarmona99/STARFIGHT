@@ -1,7 +1,7 @@
 
 #include "MyFirstComputeShader_TEST.h"
 
-TArray<float> UMyFirstComputeShader_TEST::CALL_TEST_COMPUTE_SHADER(int mapChunkSize)
+float UMyFirstComputeShader_TEST::CALL_TEST_COMPUTE_SHADER(int mapChunkSize)
 {
 
     /*
@@ -12,13 +12,11 @@ TArray<float> UMyFirstComputeShader_TEST::CALL_TEST_COMPUTE_SHADER(int mapChunkS
     // Params struct used to pass args to our compute shader
     FMySimpleComputeShaderDispatchParams Params(1, 1, 1);
 
-    InputParameterReferences InputParamRefs;
-
   
     // Executes the compute shader and calls the TFunction (the lambda) when complete.
-    FMySimpleComputeShaderInterface::Dispatch(Params, InputParamRefs, [this](TArray<float> noiseMap) {
+    FMySimpleComputeShaderInterface::Dispatch(Params, [this](float TEMP) {
         	// Called when the results are back from the GPU.
-        output = noiseMap;
+        output = 1.0f;
         });
 
     return output; // returns the first element of the noiseMap

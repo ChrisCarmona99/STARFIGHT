@@ -2,9 +2,13 @@
 
 #pragma once
 
+#include "MyShaders/Public/MySimpleComputeShader.h"
+#include "ShaderModule/Public/NoiseMapComputeShader.h"
+//#include "../../../Plugins/ProceduralTerrainGeneration/Source/ShaderModule/Public/NoiseMapComputeShader.h"
+#include "MeshData.h"
+
 #include "CoreMinimal.h"
 
-#include "MeshData.h"
 
 /**
  * 

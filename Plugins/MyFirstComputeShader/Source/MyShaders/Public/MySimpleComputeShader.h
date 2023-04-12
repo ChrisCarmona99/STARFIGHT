@@ -19,29 +19,11 @@ struct MYSHADERS_API FMySimpleComputeShaderDispatchParams
 
 
 	int32 mapChunkSize[1];
-	float* noiseMap;
-
+	std::shared_ptr<float> noiseMap;
+	std::shared_ptr<FIntVector> indexArray;
 };
 
 
-// A struct used to organize and pass the original inputs from our blueprint/cpp call to be used within our 'Dispatch' function. This may or may not be necessary, but it helps to organize the parameters.
-struct InputParameterReferences
-{
-	InputParameterReferences() {}
-
-	int32 mapChunkSize_REF;
-	std::vector<float> noiseMap_REF;
-};
-
-
-struct TestStruct
-{
-	TestStruct() {}
-
-	int32 A;
-	float B;
-	float* C;
-};
 
 
 
@@ -55,42 +37,39 @@ public:
 
 	// (DEC & DEF): Dispatches this shader. Can be called from any thread
 	static void Dispatch(FMySimpleComputeShaderDispatchParams Params,
-						 InputParameterReferences InputParamRefs,
-						 TFunction<void(TArray<float> noiseMap)> AsyncCallback)
+						 TFunction<void(float TEMP)> AsyncCallback)
 	{
 		if (IsInRenderingThread())
 		{
-			DispatchRenderThread(GetImmediateCommandList_ForRenderCommand(), Params, InputParamRefs, AsyncCallback);
+			DispatchRenderThread(GetImmediateCommandList_ForRenderCommand(), Params, AsyncCallback);
 		}
 		else
 		{
-			DispatchGameThread(Params, InputParamRefs, AsyncCallback);
+			DispatchGameThread(Params, AsyncCallback);
 		}
 	}
 
 	// Executes this shader on the render thread:
 	static void DispatchRenderThread(FRHICommandListImmediate& RHICmdList,
 									 FMySimpleComputeShaderDispatchParams Params,
-									 InputParameterReferences InputParamRefs,
-									 TFunction<void(TArray<float> noiseMap)> AsyncCallback);
+									 TFunction<void(float TEMP)> AsyncCallback);
 
 	// Executes this shader on the render thread from the game thread via EnqueueRenderThreadCommand:
 	static void DispatchGameThread(FMySimpleComputeShaderDispatchParams Params,
-								   InputParameterReferences InputParamRefs,
-								   TFunction<void(TArray<float> noiseMap)> AsyncCallback)
+								   TFunction<void(float TEMP)> AsyncCallback)
 	{
 		ENQUEUE_RENDER_COMMAND(SceneDrawCompletion)(
-			[Params, InputParamRefs, AsyncCallback](FRHICommandListImmediate& RHICmdList)
+			[Params, AsyncCallback](FRHICommandListImmediate& RHICmdList)
 			{
-				DispatchRenderThread(RHICmdList, Params, InputParamRefs, AsyncCallback);
+				DispatchRenderThread(RHICmdList, Params, AsyncCallback);
 			});
 	}
 
 };
 
 
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMySimpleComputeShaderLibrary_AsyncExecutionCompleted, const TArray<float>&, noiseMap);  // DEFINES OUR BLUEPRINT FUNCTIONS OUTPUT VALUES
+//DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMySimpleComputeShaderLibrary_AsyncExecutionCompleted, const TArray<float>&, noiseMap);  // DEFINES OUR BLUEPRINT FUNCTIONS OUTPUT VALUES
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMySimpleComputeShaderLibrary_AsyncExecutionCompleted, const float, TEMP);  // DEFINES OUR BLUEPRINT FUNCTIONS OUTPUT VALUES
 
 
 
@@ -110,10 +89,11 @@ public:
 	UPROPERTY(BlueprintAssignable)
 		FOnMySimpleComputeShaderLibrary_AsyncExecutionCompleted Completed;
 
-
+	
 	// SHADER INPUTS from our Blueprint function:
 	int32 _mapChunkSize;
-	std::vector<float> _noiseMap;
+	std::shared_ptr<float> _noiseMap;
+	std::shared_ptr<FIntVector> _indexArray;
 
 
 	virtual void Activate() override
@@ -121,23 +101,19 @@ public:
 		UE_LOG(LogTemp, Warning, TEXT("    2: 'Activate' Called"));
 
 		// Create a dispatch parameters struct
-		FMySimpleComputeShaderDispatchParams Params(16, 1, 1);
+		FMySimpleComputeShaderDispatchParams Params(1024, 1, 1); // Input Parameters define our groups
 
-		// Pass our original input parameters to a struct we can then pass and use in our Dispatch function:
-		InputParameterReferences InputParamRefs;
-		InputParamRefs.mapChunkSize_REF = _mapChunkSize;
-		InputParamRefs.noiseMap_REF = _noiseMap;
 
 		// Assign our inputs from our Blueprint function to our shader values. Make any necessary conversions here:
-
 		Params.mapChunkSize[0] = _mapChunkSize;
-		Params.noiseMap = &_noiseMap[0];
+		Params.noiseMap = _noiseMap;
+		Params.indexArray = _indexArray;
 
 
 		// Dispatch the compute shader and wait until it completes
-		FMySimpleComputeShaderInterface::Dispatch(Params, InputParamRefs, [this](TArray<float> noiseMap)
-												  {
-												       this->Completed.Broadcast(noiseMap);
+		FMySimpleComputeShaderInterface::Dispatch(Params, [this](float TEMP)
+												  {   
+												      this->Completed.Broadcast(TEMP);
 												  });
 		UE_LOG(LogTemp, Warning, TEXT("    3: 'Activate' FINISHED"));
 	}
@@ -151,9 +127,13 @@ public:
 
 		// Set our UMySimpleComputeShaderLibrary_AsyncExecution Class private variables that will then be called in the Activate() method: 
 		Action->_mapChunkSize = mapChunkSize;
-		std::vector<float> Test_noiseMap(mapChunkSize * mapChunkSize, 1);
-		Action->_noiseMap = Test_noiseMap;
+		std::shared_ptr<float> noiseMap(new float[mapChunkSize * mapChunkSize]);
+		/*std::shared_ptr<FIntVector> indexArray(new FIntVector[mapChunkSize * mapChunkSize]);*/
+		std::shared_ptr<FIntVector> indexArray(new FIntVector[5]);
+		Action->_noiseMap = noiseMap;
+		Action->_indexArray = indexArray;
 
+		
 		// Implicitly calls `Dispatch`:
 		Action->RegisterWithGameInstance(WorldContextObject);
 		UE_LOG(LogTemp, Warning, TEXT("    1: Returning 'Action'"));

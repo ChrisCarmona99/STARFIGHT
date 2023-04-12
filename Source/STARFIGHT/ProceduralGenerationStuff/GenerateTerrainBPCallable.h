@@ -5,6 +5,10 @@
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 
+//#include "HAL/Event.h"
+//#include "GenericPlatform/GenericPlatformMisc.h"
+//#include "Kismet/BlueprintAsyncActionBase.h"
+
 #include "ProceduralGeneration.h"
 #include "MeshData.h"
 
@@ -20,7 +24,15 @@ class STARFIGHT_API UGenerateTerrainBPCallable : public UBlueprintFunctionLibrar
 	
 public:
 	UFUNCTION(BlueprintCallable)
-		static FGeneratedMeshData GenerateProceduralMeshDataNEW(const int32 mapChunkSize, int32 seed, FVector2D offset, int32 levelOfDetail, 
+		static FGeneratedMeshData ExecuteProceduralMeshGeneration(FProceduralMeshInputs& Inputs);
+
+
+	//UFUNCTION(BlueprintCallable)
+	static void GenerateProceduralMeshData(FProceduralMeshInputs& Inputs, FGeneratedMeshData& meshData, FEvent* CompletionEvent);
+
+
+	UFUNCTION(BlueprintCallable)
+		static FGeneratedMeshData GenerateProceduralMeshData_OLD(const int32 mapChunkSize, int32 seed, FVector2D offset, int32 levelOfDetail,
 															 float noiseScale, int octaves, float persistance, float lacunarity, float heightMultiplier,
 															 float weightCurveExponent, float a, float b, float c);
 };

@@ -2,6 +2,7 @@
 
 
 #include "ProceduralGeneration.h"
+#include <thread>
 
 ProceduralGeneration::ProceduralGeneration()
 {
@@ -25,24 +26,61 @@ struct vector3D
 	int32 Y;
 	int32 Z;
 };
- 
-void ProceduralGeneration::GenerateNoiseMap(std::vector<float>& noiseMap, const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaves, float& persistance, float& lacurnarity)
+
+void ProceduralGeneration::GenerateNoiseMap(std::vector<float>& noiseMap, const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaveCount, float& persistance, float& lacurnarity)
 {
-	std::vector<vector2D> octaveOffsets;
+	UE_LOG(LogTemp, Warning, TEXT("GenerateNoiseMap CALLED"));
+
+
+	std::vector<vector2D> octaveOffsets_OLD;
+	std::shared_ptr<FVector2f[]> octaveOffsets(new FVector2f[octaveCount]);
+	FVector2f* octaveOffsets_ptr = octaveOffsets.get();
 
 	FRandomStream prng = FRandomStream(seed);
-	for (int32 i = 0; i < octaves; i++)
+	for (int32 i = 0; i < octaveCount; i++)
 	{
 		float offsetX = prng.FRandRange(-1000000, 1000000) + offset.X;
-		float offsetY = prng.FRandRange(-100000, 100000) + offset.Y;
-		octaveOffsets.push_back(vector2D(offsetX, offsetY));
+		float offsetY = prng.FRandRange(-1000000, 1000000) + offset.Y;
+		octaveOffsets_OLD.push_back(vector2D(offsetX, offsetY));
+		octaveOffsets_ptr[i] = FVector2f(offsetX, offsetY);
 	}
 
 	if (noiseScale <= 0) {
 		noiseScale = 0.0001f;
 	}
 
-	float maxNoiseHeight = 0;
+
+
+
+
+	int THREADS_X = 1024; // This is hardcoded for now, but just the number of threads set in the compute shader in the x dimension
+	int THREAD_GROUPS_X = FMath::DivideAndRoundUp(mapChunkSize * mapChunkSize, THREADS_X);
+
+	FNoiseMapComputeShaderDispatchParams Params(THREAD_GROUPS_X, 1, 1);
+	Params.mapChunkSize[0] = mapChunkSize;
+	Params.noiseScale[0] = noiseScale;
+	Params.octaveCount[0] = octaveCount;
+	Params.persistance[0] = persistance;
+	Params.lacurnarity[0] = lacurnarity;
+	Params.octaveOffsets = octaveOffsets;
+
+	std::shared_ptr<float[]> _noiseMap(new float[mapChunkSize * mapChunkSize]);
+	//std::shared_ptr<float[]> _noiseMap;
+	Params.noiseMap = _noiseMap;
+
+	std::shared_ptr<float[]> outputMap;
+	//FNoiseMapComputeShaderInterface::Dispatch(Params, [_noiseMap, outputMap](std::shared_ptr<float[]> OUTPUT) mutable {  // NOTE: Making the input mutable could fuck things up... double check this
+	//	//_noiseMap = OUTPUT;
+	//	//std::shared_ptr<float[]> TEST(new float[10]);
+	//	//_noiseMap = TEST;
+	//	outputMap = OUTPUT;
+	//	});
+
+	//std::this_thread::sleep_for(std::chrono::seconds(1));
+
+
+
+	float maxNoiseHeight = 0; 
 	float minNoiseHeight = 1;
 
 	float halfWidth = mapChunkSize / 2.0f;
@@ -59,10 +97,10 @@ void ProceduralGeneration::GenerateNoiseMap(std::vector<float>& noiseMap, const 
 		float noiseHeight = 0;
 
 		// Apply Octaves
-		for (int i2 = 0; i2 < octaves; i2++)
+		for (int i2 = 0; i2 < octaveCount; i2++)
 		{
-			float sampleX = (x - halfWidth) / noiseScale * frequency + octaveOffsets[i2].X;
-			float sampleY = (y - halfHeight) / noiseScale * frequency + octaveOffsets[i2].Y;
+			float sampleX = (x - halfWidth) / noiseScale * frequency + octaveOffsets_OLD[i2].X;
+			float sampleY = (y - halfHeight) / noiseScale * frequency + octaveOffsets_OLD[i2].Y;
 
 			float perlinValue = FMath::PerlinNoise2D(FVector2D(sampleX, sampleY)) * 2 - 1; // we multiply by '2' then subtract '1' so that our values can be negative!!
 			noiseHeight += perlinValue * amplitude;
@@ -87,6 +125,7 @@ void ProceduralGeneration::GenerateNoiseMap(std::vector<float>& noiseMap, const 
 		noiseMap[i1] = InverseLerp(minNoiseHeight, maxNoiseHeight, noiseMap[i1]);
 		//UE_LOG(LogTemp, Warning, TEXT("		noiseMap[%d] == %d"), i1, noiseMap[i1]);
 	}
+	int _T_ = 1;
 }
 
 

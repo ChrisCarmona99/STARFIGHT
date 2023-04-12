@@ -17,7 +17,7 @@ class STARFIGHT_API UMyFirstComputeShader_TEST : public UBlueprintFunctionLibrar
 
 public:
 	UFUNCTION(BlueprintCallable)
-		TArray<float> CALL_TEST_COMPUTE_SHADER(int mapChunkSize);
+		float CALL_TEST_COMPUTE_SHADER(int mapChunkSize);
 
-	TArray<float> output;
+	float output;
 };

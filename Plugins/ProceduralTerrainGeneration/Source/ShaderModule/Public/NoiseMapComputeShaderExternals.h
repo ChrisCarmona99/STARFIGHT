@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MyShaders/Public/MyShaders.h"
+#include "ShaderModule/Public/ShaderModule.h"  // DOUBLE CHECK THIS IS RIGHT IN THE TEST SHADER CODE TOO
 #include "MeshPassProcessor.h"
 #include "RHICommandList.h"
 #include "RenderGraphBuilder.h"
@@ -23,9 +23,9 @@
 #include "RenderResource.h"
 #include "RenderGraphResources.h"
 
-#include "RenderGraphResources.h"
+//#include "RenderGraphResources.h"
 #include "Runtime/Engine/Classes/Engine/TextureRenderTarget2D.h"
 
-#define NUM_THREADS_MySimpleComputeShader_X 16
-#define NUM_THREADS_MySimpleComputeShader_Y 1
-#define NUM_THREADS_MySimpleComputeShader_Z 1
+#define NUM_THREADS_NoiseMapComputeShader_X 16
+#define NUM_THREADS_NoiseMapComputeShader_Y 1
+#define NUM_THREADS_NoiseMapComputeShader_Z 1
