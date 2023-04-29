@@ -23,12 +23,10 @@ class STARFIGHT_API UGenerateTerrainBPCallable : public UBlueprintFunctionLibrar
 	GENERATED_BODY()
 	
 public:
-	UFUNCTION(BlueprintCallable)
+	/*UFUNCTION(BlueprintCallable)
 		static FGeneratedMeshData ExecuteProceduralMeshGeneration(FProceduralMeshInputs& Inputs);
 
-
-	//UFUNCTION(BlueprintCallable)
-	static void GenerateProceduralMeshData(FProceduralMeshInputs& Inputs, FGeneratedMeshData& meshData, FEvent* CompletionEvent);
+	static void GenerateProceduralMeshData(FProceduralMeshInputs& Inputs, FGeneratedMeshData& meshData, FEvent* CompletionEvent);*/
 
 
 	UFUNCTION(BlueprintCallable)

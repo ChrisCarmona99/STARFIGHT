@@ -39,37 +39,42 @@ class SHADERMODULE_API FNoiseMapComputeShaderInterface
 
 public:
 
-	// (DEC & DEF): Dispatches this shader. Can be called from any thread
-	static void Dispatch(FNoiseMapComputeShaderDispatchParams Params,
-						 TFunction<void(std::shared_ptr<float[]> OUTPUT)> AsyncCallback)
-	{
-		if (IsInRenderingThread())
-		{
-			DispatchRenderThread(GetImmediateCommandList_ForRenderCommand(), Params, AsyncCallback);
-		}
-		else
-		{
-			DispatchGameThread(Params, AsyncCallback);
-		}
-	}
+	//// (DEC & DEF): Dispatches this shader. Can be called from any thread
+	//static void Dispatch(FNoiseMapComputeShaderDispatchParams Params,
+	//					 TFunction<void(std::shared_ptr<float[]> OUTPUT)> AsyncCallback)
+	//{
+	//	if (IsInRenderingThread())
+	//	{
+	//		DispatchRenderThread(GetImmediateCommandList_ForRenderCommand(), Params, AsyncCallback);
+	//	}
+	//	else
+	//	{
+	//		DispatchGameThread(Params, AsyncCallback);
+	//	}
+	//}
 
 
-	// Executes this shader on the render thread from the game thread via EnqueueRenderThreadCommand:
-	static void DispatchGameThread(FNoiseMapComputeShaderDispatchParams Params,
-								   TFunction<void(std::shared_ptr<float[]> OUTPUT)> AsyncCallback)
-	{
-		ENQUEUE_RENDER_COMMAND(SceneDrawCompletion)(
-			[Params, AsyncCallback](FRHICommandListImmediate& RHICmdList)
-			{
-				DispatchRenderThread(RHICmdList, Params, AsyncCallback);
-			});
-	}
+	//// Executes this shader on the render thread from the game thread via EnqueueRenderThreadCommand:
+	//static void DispatchGameThread(FNoiseMapComputeShaderDispatchParams Params,
+	//							   TFunction<void(std::shared_ptr<float[]> OUTPUT)> AsyncCallback)
+	//{
+	//	ENQUEUE_RENDER_COMMAND(SceneDrawCompletion)(
+	//		[Params, AsyncCallback](FRHICommandListImmediate& RHICmdList)
+	//		{
+	//			DispatchRenderThread(RHICmdList, Params, AsyncCallback);
+	//		});
+	//}
 	
 
 	// Executes this shader on the render thread:
 	static void DispatchRenderThread(FRHICommandListImmediate& RHICmdList,
 									 FNoiseMapComputeShaderDispatchParams Params,
-									 TFunction<void(std::shared_ptr<float[]> OUTPUT)> AsyncCallback);
+									 std::shared_ptr<float[]> NoiseMap);
+
+	// Executes this shader on the render thread:
+	static void DispatchRenderThread_OLD(FRHICommandListImmediate& RHICmdList,
+		FNoiseMapComputeShaderDispatchParams Params,
+		TFunction<void(std::shared_ptr<float[]> OUTPUT)> AsyncCallback);
 
 };
 

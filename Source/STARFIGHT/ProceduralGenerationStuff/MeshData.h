@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "ProceduralMeshComponent.h"
+
 #include "MeshData.generated.h"
 
 
@@ -42,7 +43,8 @@ struct FGeneratedMeshData {
 
 
 	// Add a triangle:
-	void AddTriangle(int32 a, int32 b, int32 c) {
+	void AddTriangle(int32 a, int32 b, int32 c) 
+	{
 		triangles.Add(a);
 		triangles.Add(b);
 		triangles.Add(c);
@@ -67,8 +69,11 @@ struct FProceduralMeshInputs {
 
 	// Default Constructor DECLARATION:
 	FORCEINLINE FProceduralMeshInputs();
-	//// Main Constructor DECLARATION:
-	//explicit FORCEINLINE FProceduralMeshInputs(int32 inputMeshWidth, int32 inputMeshHeight);
+
+	// 
+	UPROPERTY(VisibleAnywhere)
+		UProceduralMeshComponent* proceduralTerrainMesh;
+
 
 	UPROPERTY(BlueprintReadWrite)
 		int32 mapChunkSize;
@@ -82,6 +87,7 @@ struct FProceduralMeshInputs {
 	UPROPERTY(BlueprintReadWrite)
 		int32 levelOfDetail;
 
+	// Noise Parameters:
 	UPROPERTY(BlueprintReadWrite)
 		float noiseScale;
 
@@ -108,6 +114,13 @@ struct FProceduralMeshInputs {
 
 	UPROPERTY(BlueprintReadWrite)
 		float c;
+
+	// Erosion Parameters:
+	UPROPERTY(BlueprintReadWrite)
+		int32 dropletLifetime;
+
+	UPROPERTY(BlueprintReadWrite)
+		int32 numIterations;
 };
 
 

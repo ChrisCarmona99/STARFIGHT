@@ -6,41 +6,39 @@
 // CreateMeshSection  (ProceduralMeshComponent.h)
 // CalculateTangentsForMesh  (KismetProceduralMeshLibrary.h)
 
-FGeneratedMeshData UGenerateTerrainBPCallable::ExecuteProceduralMeshGeneration(FProceduralMeshInputs& Inputs)
-{
-	FGeneratedMeshData meshData;
-
-	if (!IsInRenderingThread())
-	{
-		// Create a completion event to be signaled when the command has completed
-		FEvent* CompletionEvent = FPlatformProcess::GetSynchEventFromPool(true);
-
-		// Enqueue a render command to call MyFunction on the render thread
-		ENQUEUE_RENDER_COMMAND(MyRenderCommand)(
-			[CompletionEvent, Inputs, meshData](FRHICommandListImmediate& RHICmdList) mutable
-			{
-				// Call the function on the render thread
-				int a = 1;
-				UGenerateTerrainBPCallable::GenerateProceduralMeshData(Inputs, meshData, CompletionEvent);
-			}
-		);
-
-		// Wait for the completion event to be signaled on the game thread
-		CompletionEvent->Wait();
-		// Free the completion event
-		FPlatformProcess::ReturnSynchEventToPool(CompletionEvent);
-	}
-	
-
-
-	return meshData;
-}
-
-// This is our blueprint callable function that will be used to put the actual generation function on the render thread:
-void UGenerateTerrainBPCallable::GenerateProceduralMeshData(FProceduralMeshInputs& Inputs, FGeneratedMeshData& meshData, FEvent* CompletionEvent)
-{
-	int a = 1;
-}
+//FGeneratedMeshData UGenerateTerrainBPCallable::ExecuteProceduralMeshGeneration(FProceduralMeshInputs& Inputs)
+//{
+//	FGeneratedMeshData meshData;
+//
+//	if (!IsInRenderingThread())
+//	{
+//		// Create a completion event to be signaled when the command has completed
+//		FEvent* CompletionEvent = FPlatformProcess::GetSynchEventFromPool(true);
+//
+//		// Enqueue a render command to call MyFunction on the render thread
+//		ENQUEUE_RENDER_COMMAND(MyRenderCommand)(
+//			[CompletionEvent, Inputs, meshData](FRHICommandListImmediate& RHICmdList) mutable
+//			{
+//				// Call the function on the render thread
+//				int a = 1;
+//				UGenerateTerrainBPCallable::GenerateProceduralMeshData(Inputs, meshData, CompletionEvent);
+//			}
+//		);
+//
+//		// Wait for the completion event to be signaled on the game thread
+//		CompletionEvent->Wait();
+//		// Free the completion event
+//		FPlatformProcess::ReturnSynchEventToPool(CompletionEvent);
+//	}
+//	
+//	return meshData;
+//}
+//
+//// This is our blueprint callable function that will be used to put the actual generation function on the render thread:
+//void UGenerateTerrainBPCallable::GenerateProceduralMeshData(FProceduralMeshInputs& Inputs, FGeneratedMeshData& meshData, FEvent* CompletionEvent)
+//{
+//	int a = 1;
+//}
 
 
 FGeneratedMeshData UGenerateTerrainBPCallable::GenerateProceduralMeshData_OLD(const int32 mapChunkSize, int32 seed, FVector2D offset, int32 levelOfDetail, 
@@ -50,8 +48,8 @@ FGeneratedMeshData UGenerateTerrainBPCallable::GenerateProceduralMeshData_OLD(co
 	std::vector<float> noiseMap;
 	FGeneratedMeshData meshData;
 
-	ProceduralGeneration::GenerateNoiseMap(noiseMap, mapChunkSize, seed, offset, noiseScale, octaves, persistance, lacunarity);
-	ProceduralGeneration::ApplyFalloffMap(noiseMap, mapChunkSize, a, b, c);
+	ProceduralGeneration::GenerateNoiseMap_OLD(noiseMap, mapChunkSize, seed, offset, noiseScale, octaves, persistance, lacunarity);
+	ProceduralGeneration::ApplyFalloffMap_OLD(noiseMap, mapChunkSize, a, b, c);
 
 	// Sets the starting traversal point for all the vertices
 	//		In UE5, the x-axis and y-axis are flipped... +x is 'forward' and +y is 'to the right'
