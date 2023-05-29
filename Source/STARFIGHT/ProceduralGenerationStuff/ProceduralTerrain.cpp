@@ -81,6 +81,16 @@ void AProceduralTerrain::OnConstruction(const FTransform& Transform)
 	UE_LOG(LogTemp, Warning, TEXT(""));
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 1: OnConstruction CALLED"), *ThreadName);
 
+	// Perform input value boundry checks:
+	MapChunkSize = (MapChunkSize < 2) ? 2 : MapChunkSize;
+	NoiseScale = (NoiseScale < 0.0001f) ? 0.0001f : NoiseScale;
+	Lacurnarity = (Lacurnarity < 1) ? 1 : Lacurnarity;
+	Octaves = (Octaves < 0) ? 0 : Octaves;
+	Persistence = (Persistence < 0) ? 0 : (Persistence > 1) ? 1 : Persistence;
+	WeightCurveExponent = (WeightCurveExponent < 1.0f) ? 1.0f : WeightCurveExponent;
+	LevelOfDetail = (LevelOfDetail < 0) ? 0 : (LevelOfDetail > 6) ? 6 : LevelOfDetail;
+
+	// Set our `Inputs` struct:
 	FProceduralMeshInputs Inputs;
 	Inputs.proceduralTerrainMesh = _ProceduralTerrainMesh;
 
@@ -102,6 +112,7 @@ void AProceduralTerrain::OnConstruction(const FTransform& Transform)
 	Inputs.dropletLifetime = DropletLifetime;
 	Inputs.numIterations = NumIterations;
 
+	// Log all the inputs (Debug purposes):
 	auto printInputs = [Inputs]()
 	{
 		UE_LOG(LogTemp, Warning, TEXT(""));
@@ -126,7 +137,7 @@ void AProceduralTerrain::OnConstruction(const FTransform& Transform)
 	};
 	printInputs();
 
-
+	// Regenerate the terrain based off the new input values (This will be executed after the constructor):
 	AProceduralTerrain::ExecuteProceduralMeshGeneration(Inputs);
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 4: OnConstruction DONE"), *ThreadName);
 }
@@ -201,7 +212,6 @@ void AProceduralTerrain::ExecuteProceduralMeshGeneration(FProceduralMeshInputs& 
 			std::shared_ptr<FGeneratedMeshData> MeshData(new FGeneratedMeshData);
 
 			
-
 			// Execute GenerateProceduralMeshData on the TerrainGenerationThread
 			UE_LOG(LogTemp, Warning, TEXT("| %s | 5: GenerateProceduralMeshData CALLED"), *ThreadName);
 			AProceduralTerrain::GenerateProceduralMeshData(MeshData, Inputs);

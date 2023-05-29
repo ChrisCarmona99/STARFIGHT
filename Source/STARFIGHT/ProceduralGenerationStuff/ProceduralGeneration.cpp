@@ -54,9 +54,9 @@ void ProceduralGeneration::GenerateNoiseMap(float*& noiseMap, const int32& mapCh
 		octaveOffsets[i] = FVector2f(offsetX, offsetY);
 	}
 
-	if (noiseScale <= 0) {
+	/*if (noiseScale <= 0) {
 		noiseScale = 0.0001f;
-	}
+	}*/
 
 	int THREADS_X = 1024; // This is hardcoded for now, but just the number of threads set in the compute shader in the x dimension
 	int THREADS_Y = 1;
