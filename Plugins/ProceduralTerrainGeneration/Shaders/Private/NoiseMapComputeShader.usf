@@ -8,8 +8,9 @@ Buffer<float> persistance;
 Buffer<float> lacurnarity;
 Buffer<float2> octaveOffsets;
 
-RWStructuredBuffer<float> noiseMap : register(u0);
+// RWStructuredBuffer<float> noiseMap : register(u0);
 // RWBuffer<float> noiseMap : register(u0);
+RWBuffer<float> noiseMap;
 
 
 static int Permutation[512] = 
@@ -108,18 +109,18 @@ float PerlinNoise(float2 sample)
 void NoiseMapComputeShader
 	   (
 		uint3 GroupID : SV_GroupID, // The index for a particular thread group as an (X, Y, Z) coordinate index
-		uint GroupIndex : SV_GroupIndex,  // Just another index for a specific thread group but "flattened" into a linear dimension (see notes on how this is calculated)
+		uint GROUP_INDEX : SV_GroupIndex,  // THIS IS THE ONE... An index for a specific thread group but "flattened" into a linear dimension (see notes on how this is calculated)
 		uint3 GroupThreadID : SV_GroupThreadID,  // The index of the current thread within the current thread group as an (X, Y, Z) coordinate index
 		uint3 DispatchThreadId : SV_DispatchThreadID  // The index of the current thread within the ENTIRE dispatch call... so basically every thread within every thread group!
 	   ) 
 {
 	uint3 NUM_THREADS = uint3(1024, 1, 1);
 	// uint THREAD_INDEX = DispatchThreadId.z * NUM_THREADS.x * NUM_THREADS.y + DispatchThreadId.y * NUM_THREADS.x + DispatchThreadId.x;
-	uint THREAD_INDEX = GroupIndex + NUM_THREADS.x * NUM_THREADS.y * NUM_THREADS.z + GroupThreadID.z * NUM_THREADS.x * NUM_THREADS.y + GroupThreadID.y * NUM_THREADS.x + GroupThreadID.x;
+	// uint THREAD_INDEX = GROUP_INDEX + NUM_THREADS.x * NUM_THREADS.y * NUM_THREADS.z + GroupThreadID.z * NUM_THREADS.x * NUM_THREADS.y + GroupThreadID.y * NUM_THREADS.x + GroupThreadID.x;
 
 	// Check if the current "THREAD_INDEX" has exceeded the vertex count of our map (mapChunkSize[0] * mapChunkSize[0]),
 	// meaning we have exceeded the size of our heightMap buffer and we don't need to keep generating any more vertex heights
-	if ( (int)THREAD_INDEX < (mapChunkSize[0] * mapChunkSize[0]))
+	if ( (int)GROUP_INDEX < (mapChunkSize[0] * mapChunkSize[0]))
 	{
 		float maxNoiseHeight = 0;
 		float minNoiseHeight = 1;
@@ -127,8 +128,8 @@ void NoiseMapComputeShader
 		float halfWidth = (float)mapChunkSize[0] / 2.0f;
 		float halfHeight = (float)mapChunkSize[0] / 2.0f;
 
-		int x = THREAD_INDEX % mapChunkSize[0];
-		int y = (int)floor(THREAD_INDEX / mapChunkSize[0]);
+		int x = GROUP_INDEX % mapChunkSize[0];
+		int y = (int)floor(GROUP_INDEX / mapChunkSize[0]);
 
 		float amplitude = 1;
 		float frequency = 1;
@@ -162,18 +163,21 @@ void NoiseMapComputeShader
 			minNoiseHeight = noiseHeight;
 		}
 
-		noiseMap[THREAD_INDEX] = InverseLerp(minNoiseHeight, maxNoiseHeight, noiseHeight);
+		// noiseMap[THREAD_INDEX] = InverseLerp(minNoiseHeight, maxNoiseHeight, noiseHeight);
 
-
-		noiseMap[THREAD_INDEX] = (float)THREAD_INDEX;
+		// noiseMap[THREAD_INDEX] = (float)THREAD_INDEX;
 
 		// float original = noiseMap[THREAD_INDEX];
-		float original;
-		InterlockedExchange(noiseMap[THREAD_INDEX], (float)THREAD_INDEX, original);
+		// float original;
+		// InterlockedExchange(noiseMap[THREAD_INDEX], (float)THREAD_INDEX, original);
+		// InterlockedExchange(noiseMap[THREAD_INDEX], 6.9f, original);
+		noiseMap[GROUP_INDEX] = (float)GROUP_INDEX;
+
 	}
 	else
 	{
-		float original;
-		InterlockedExchange(noiseMap[THREAD_INDEX], 7.2f, original);
+		// float original;
+		// InterlockedExchange(noiseMap[THREAD_INDEX], 7.2f, original);
+		// noiseMap[THREAD_INDEX] = 7.2f;
 	}
 }

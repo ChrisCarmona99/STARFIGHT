@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "ShaderModule/Public/ShaderModule.h"  // DOUBLE CHECK THIS IS RIGHT IN THE TEST SHADER CODE TOO
 #include "MeshPassProcessor.h"
-//#include "RHICommandList.h"
 #include "RenderGraphBuilder.h"
 #include "RenderTargetPool.h"
 #include "MeshMaterialShader.h"
@@ -22,6 +21,7 @@
 #include "RendererInterface.h"
 #include "RenderResource.h"
 #include "RenderGraphResources.h"
+#include "RenderingThread.h"
 
 #include "Runtime/Engine/Classes/Engine/TextureRenderTarget2D.h"
 

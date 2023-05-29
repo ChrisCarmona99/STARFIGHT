@@ -7,8 +7,8 @@
 #include "HAL/ThreadManager.h"
 
 
-// Constructor:
-AProceduralTerrain::AProceduralTerrain() : 
+
+AProceduralTerrain::AProceduralTerrain() :
 	// Mesh Components:
 	_ProceduralTerrainMesh(CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("GeneratedMesh"))),
 
@@ -55,11 +55,13 @@ AProceduralTerrain::AProceduralTerrain() :
 }
 
 
+
 void AProceduralTerrain::BeginPlay()
 {
 	Super::BeginPlay();
 	
 }
+
 
 
 void AProceduralTerrain::OnConstruction(const FTransform& Transform)
@@ -68,6 +70,12 @@ void AProceduralTerrain::OnConstruction(const FTransform& Transform)
 	const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
 
 	Super::OnConstruction(Transform);
+	UE_LOG(LogTemp, Warning, TEXT(""));
+	UE_LOG(LogTemp, Warning, TEXT(""));
+	UE_LOG(LogTemp, Warning, TEXT(""));
+	UE_LOG(LogTemp, Warning, TEXT(""));
+	UE_LOG(LogTemp, Warning, TEXT(""));
+	UE_LOG(LogTemp, Warning, TEXT(""));
 	UE_LOG(LogTemp, Warning, TEXT(""));
 	UE_LOG(LogTemp, Warning, TEXT(""));
 	UE_LOG(LogTemp, Warning, TEXT(""));
@@ -124,12 +132,14 @@ void AProceduralTerrain::OnConstruction(const FTransform& Transform)
 }
 
 
+
 // Called every frame
 void AProceduralTerrain::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
 }
+
 
 
 void AProceduralTerrain::CreateTestTriangle(UProceduralMeshComponent* proceduralTerrainMesh)
@@ -172,12 +182,49 @@ void AProceduralTerrain::CreateTestTriangle(UProceduralMeshComponent* procedural
 }
 
 
+
 void AProceduralTerrain::ExecuteProceduralMeshGeneration(FProceduralMeshInputs& Inputs)
 {
 	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 	const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
 
-	UE_LOG(LogTemp, Warning, TEXT("| %s | 2: ExecuteProceduralMeshGeneration CALLED"), *ThreadName);
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 2: STARTING TerrainGenerationThread"), *ThreadName);
+
+	// Launch the TerrainGenerationThread:
+	std::thread TerrainGenerationThread(
+		[Inputs]() mutable
+		{
+			uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+			const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
+
+			// Create a `Mesh Data` struct:
+			std::shared_ptr<FGeneratedMeshData> MeshData(new FGeneratedMeshData);
+
+			
+
+			// Execute GenerateProceduralMeshData on the TerrainGenerationThread
+			UE_LOG(LogTemp, Warning, TEXT("| %s | 5: GenerateProceduralMeshData CALLED"), *ThreadName);
+			AProceduralTerrain::GenerateProceduralMeshData(MeshData, Inputs);
+			UE_LOG(LogTemp, Warning, TEXT("| %s | 17: GenerateProceduralMeshData FINISHED"), *ThreadName);
+
+
+			UE_LOG(LogTemp, Warning, TEXT("| %s | 18: CALLING ASYNC TASK ON GAME THREAD..."), *ThreadName);
+			AsyncTask(ENamedThreads::GameThread,
+				[Inputs]()
+				{
+					uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+					const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
+
+					UE_LOG(LogTemp, Warning, TEXT("| %s | 19: BUILDING MESH"), *ThreadName);
+					AProceduralTerrain::CreateTestTriangle(Inputs.proceduralTerrainMesh);
+				});
+		});
+	
+	// Detach the TerrainGenerationThread so we don't halt the GameThread
+	TerrainGenerationThread.detach();
+
+	/*
+	* 
 	if (!IsInRenderingThread())
 	{ 
 		// Enqueue a render command to call MyFunction on the render thread
@@ -198,60 +245,63 @@ void AProceduralTerrain::ExecuteProceduralMeshGeneration(FProceduralMeshInputs& 
 				AProceduralTerrain::GenerateProceduralMeshData(MeshData, Inputs, CompletionEvent);
 				UE_LOG(LogTemp, Warning, TEXT("| %s | 16: GenerateProceduralMeshData FINISHED"), *ThreadName);
 
-
-
+				CompletionEvent->Wait();
+				UE_LOG(LogTemp, Warning, TEXT("| %s | 17: CALLING ASYNC TASK ON GAME THREAD..."), *ThreadName);
 				AsyncTask(ENamedThreads::GameThread,
 					[Inputs]()
 					{
 						uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 						const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
 
-						UE_LOG(LogTemp, Warning, TEXT("| %s | 17: BUILDING MESH"), *ThreadName);
+						UE_LOG(LogTemp, Warning, TEXT("| %s | 18: BUILDING MESH"), *ThreadName);
 						AProceduralTerrain::CreateTestTriangle(Inputs.proceduralTerrainMesh);
 					});
 
-				
 			}
-		);
-		
-		//// Release the shared pointer on the game thread so that it does not block waiting for the render thread
-		//MeshData.reset();
-
-		//UE_LOG(LogTemp, Warning, TEXT("CreateAndDispatchWhenReady DEFINED..."));
-		//// Spawn a new thread to wait for the completion event to be signaled
-		//FGraphEventRef CompletionEventGraphEvent = FFunctionGraphTask::CreateAndDispatchWhenReady(
-		//	[Inputs, CompletionEvent, MeshData]() mutable
-		//	{
-		//		// Wait for the completion event to be signaled on the game thread
-		//		UE_LOG(LogTemp, Warning, TEXT("		CompletionEvent->Wait() CALLED"));
-		//		CompletionEvent->Wait();
-		//		UE_LOG(LogTemp, Warning, TEXT("		CompletionEvent->Wait() FINISHED"));
-
-		//		// Do something with the result on the game thread
-		//		UE_LOG(LogTemp, Warning, TEXT("BUILDING MESH"));
-		//		AProceduralTerrain::CreateTestTriangle(Inputs.proceduralTerrainMesh);
-		//		UE_LOG(LogTemp, Warning, TEXT("MESH BUILT"));
-
-		//		// Free the completion event
-		//		FPlatformProcess::ReturnSynchEventToPool(CompletionEvent);
-		//	},
-		//	TStatId(),
-		//	nullptr,
-		//	ENamedThreads::GameThread
-		//	);
+		);	
 	}
+	*
+	*/
+
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 3: ExecuteProceduralMeshGeneration EXITED"), *ThreadName);
 }
 
 
-void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMeshData> MeshData, FProceduralMeshInputs& Inputs, FEvent* CompletionEvent)
+
+void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMeshData> MeshData, FProceduralMeshInputs& Inputs)
 {
+	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+	const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
+
+
 	// Create a new `Noise Map` array:
-	std::shared_ptr<float[]> NoiseMap(new float[Inputs.mapChunkSize * Inputs.mapChunkSize]);
+	//std::shared_ptr<float[]> NoiseMap(new float[Inputs.mapChunkSize * Inputs.mapChunkSize]);
+	float* NoiseMap = new float[Inputs.mapChunkSize * Inputs.mapChunkSize];
+
+	// Initialize the NoiseMap with 0.0f for each element:
+	//std::fill(NoiseMap.get(), NoiseMap.get() + Inputs.mapChunkSize * Inputs.mapChunkSize, 4.23f);
+
+	
+	UE_LOG(LogTemp, Warning, TEXT("| %s | #: TESTING NoiseMap 1:"), *ThreadName);
+	for (int index = 0; index < Inputs.mapChunkSize * Inputs.mapChunkSize; index += FMath::DivideAndRoundUp(Inputs.mapChunkSize * Inputs.mapChunkSize, 50))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("        index: %d   |   value: %f"), index, NoiseMap[index]);
+	}
+
 
 	ProceduralGeneration::GenerateNoiseMap(NoiseMap, Inputs.mapChunkSize, Inputs.seed, Inputs.offset, Inputs.noiseScale, Inputs.octaves, Inputs.persistence, Inputs.lacunarity);
+	
+
+	UE_LOG(LogTemp, Warning, TEXT("| %s | #: TESTING NoiseMap 2:"), *ThreadName);
+	for (int index = 0; index < Inputs.mapChunkSize * Inputs.mapChunkSize; index += FMath::DivideAndRoundUp(Inputs.mapChunkSize * Inputs.mapChunkSize, 50))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("        index: %d   |   value: %f"), index, NoiseMap[index]);
+	}
+
+
 	ProceduralGeneration::ApplyFalloffMap(NoiseMap, Inputs.mapChunkSize, Inputs.a, Inputs.b, Inputs.c);
 	ProceduralGeneration::ApplyErosionMap(NoiseMap, Inputs.mapChunkSize, Inputs.seed, Inputs.dropletLifetime, Inputs.numIterations);
+
 
 
 	// Sets the starting traversal point for all the vertices
@@ -264,7 +314,9 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 	// Calculates correct number of vertic  es for our 'vertices' array:
 	int32 verticesPerLine = ((Inputs.mapChunkSize - 1) / LODincrement) + 1;
 
-	// MAKE HLSL:
+
+
+	// Populate MeshData (TODO: Make HLSL):
 	for (int i = 0; i < Inputs.mapChunkSize * Inputs.mapChunkSize; i++)
 	{
 		// Define our proportionate 'x' and 'y' indices so that we can map our 1D vector too an 'x' and 'y' coordinate for our vertex
@@ -272,8 +324,8 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 		int x = std::floor(i / Inputs.mapChunkSize); // outer vector, traveres the x-axis (top to bottom)
 
 		// Define the height for the current vertex in our iteration
-		float* NoiseMap_ptr = NoiseMap.get();
-		float currentHeight = ProceduralGeneration::calculateWeightCurve(NoiseMap_ptr[i], Inputs.weightCurveExponent) * Inputs.heightMultiplier;
+		//float* NoiseMap_ptr = NoiseMap.get();
+		float currentHeight = ProceduralGeneration::calculateWeightCurve(NoiseMap[i], Inputs.weightCurveExponent) * Inputs.heightMultiplier;
 
 		// Add Vertices, UVs, VertexColors, and Triangles:
 		MeshData->vertices.Add(FVector(topMostX - x, leftMostY + y, currentHeight));
@@ -291,10 +343,11 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 			MeshData->AddTriangle(i + verticesPerLine + 1, i + 1, i);
 		}
 	}
-	
-	// INDICATE WE ARE DONE WITH GENERATION:
-	CompletionEvent->Trigger();
+
+	// DONE WITH ALL NESH GENERATION TASKS... DEALLOCATE EVERTHING THAT'S NOT MeshData:
+	delete[] NoiseMap;
 }
+
 
 
 void AProceduralTerrain::AddNormalAndTangent(std::shared_ptr<FGeneratedMeshData> meshData, int& vertexIndex)
@@ -306,3 +359,4 @@ void AProceduralTerrain::AddNormalAndTangent(std::shared_ptr<FGeneratedMeshData>
 	bool bFlipBitangent = true;
 	meshData->tangents.Add(FProcMeshTangent(FVector(0.0f, 0.0f, 0.0f), bFlipBitangent));
 }
+

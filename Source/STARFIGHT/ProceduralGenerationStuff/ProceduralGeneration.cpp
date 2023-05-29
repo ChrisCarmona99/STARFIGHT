@@ -3,7 +3,11 @@
 
 #include "ProceduralGeneration.h"
 #include <thread>
+#include <mutex>
 #include "HAL/ThreadManager.h"
+#include "../../../../../../../../Program Files/Epic Games/UE_5.1/Engine/Source/Runtime/RHI/Public/RHIGPUReadback.h"
+//#include "RHIGPUReadback.h"
+
 
 
 ProceduralGeneration::ProceduralGeneration()
@@ -29,7 +33,7 @@ struct vector3D
 	int32 Z;
 };
 
-void ProceduralGeneration::GenerateNoiseMap(std::shared_ptr<float[]> NoiseMap, const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaveCount, float& persistance, float& lacurnarity)
+void ProceduralGeneration::GenerateNoiseMap(float*& noiseMap, const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaveCount, float& persistance, float& lacurnarity)
 {
 	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 	const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
@@ -38,15 +42,16 @@ void ProceduralGeneration::GenerateNoiseMap(std::shared_ptr<float[]> NoiseMap, c
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 6: GenerateNoiseMap CALLED"), *ThreadName);
 
 
-	std::shared_ptr<FVector2f[]> octaveOffsets(new FVector2f[octaveCount]);
-	FVector2f* octaveOffsets_ptr = octaveOffsets.get();
+	//std::shared_ptr<FVector2f[]> octaveOffsets(new FVector2f[octaveCount]);
+	//FVector2f* octaveOffsets_ptr = octaveOffsets.get();
+	FVector2f* octaveOffsets = new FVector2f[octaveCount];
 
 	FRandomStream prng = FRandomStream(seed);
 	for (int32 i = 0; i < octaveCount; i++)
 	{
 		float offsetX = prng.FRandRange(-1000000, 1000000) + offset.X;
 		float offsetY = prng.FRandRange(-1000000, 1000000) + offset.Y;
-		octaveOffsets_ptr[i] = FVector2f(offsetX, offsetY);
+		octaveOffsets[i] = FVector2f(offsetX, offsetY);
 	}
 
 	if (noiseScale <= 0) {
@@ -54,9 +59,13 @@ void ProceduralGeneration::GenerateNoiseMap(std::shared_ptr<float[]> NoiseMap, c
 	}
 
 	int THREADS_X = 1024; // This is hardcoded for now, but just the number of threads set in the compute shader in the x dimension
+	int THREADS_Y = 1;
+	int THREADS_Z = 1;
 	int THREAD_GROUPS_X = FMath::DivideAndRoundUp(mapChunkSize * mapChunkSize, THREADS_X);
 
-	FNoiseMapComputeShaderDispatchParams Params(THREAD_GROUPS_X, 1, 1);
+	FNoiseMapComputeShaderDispatchParams Params(THREADS_X, THREADS_Y, THREADS_Z);
+	Params.THREAD_GROUPS_X = THREAD_GROUPS_X;
+
 	Params.mapChunkSize[0] = mapChunkSize;
 	Params.noiseScale[0] = noiseScale;
 	Params.octaveCount[0] = octaveCount;
@@ -64,62 +73,51 @@ void ProceduralGeneration::GenerateNoiseMap(std::shared_ptr<float[]> NoiseMap, c
 	Params.lacurnarity[0] = lacurnarity;
 	Params.octaveOffsets = octaveOffsets;
 
-	Params.noiseMap = NoiseMap;
+	Params.noiseMap = noiseMap;
 
 	
+	std::mutex ComputeShaderMutex;
 
+	// Create a completion event to be signaled when the Compute Shader has completed:
+	FEvent* NoiseMapCompletionEvent = FPlatformProcess::GetSynchEventFromPool(true);
 
-	// Create a new FRHIComputeCommandListImmediate object
-	//FRHIComputeCommandListImmediate* ComputeCommandList = RHICreateComputeCommandList(GRHICmdList.GetDynamicRHI());
-	 
-	//// Begin the compute pass
-	//FRHIComputeCommandListExecutor::GetImmediateCommandList().BeginComputePass(ComputeCommandList);
-
-	//// Dispatch the compute shader on the compute command list
-	//ComputeCommandList->SetComputeShader(ComputeShader->GetComputeShader());
-	//ComputeCommandList->Dispatch(DispatchCountX, DispatchCountY, DispatchCountZ);
-
-	//// End the compute pass
-	//FRHIComputeCommandListExecutor::GetImmediateCommandList().EndComputePass();
-
-	//// Submit the command list for execution
-	//ComputeCommandList->ImmediateDispatch(ERHIFeatureLevel::SM5, nullptr, nullptr);
-
-
-
-	/*FNoiseMapComputeShaderInterface::Dispatch(
-		Params, 
-		[NoiseMap, NoiseMap_ShaderCompletionEvent](std::shared_ptr<float[]> OUTPUT) mutable 
-		{
-		UE_LOG(LogTemp, Warning, TEXT("** NoiseMap SET **"));
-		NoiseMap = OUTPUT;
-
-		UE_LOG(LogTemp, Warning, TEXT("NoiseMap_ShaderCompletionEvent->Trigger() CALLED"));
-		NoiseMap_ShaderCompletionEvent->Trigger();
-		});*/
-	FNoiseMapComputeShaderInterface::DispatchRenderThread(
-		GetImmediateCommandList_ForRenderCommand(), 
-		Params, 
-		NoiseMap);
-
-
-	UE_LOG(LogTemp, Warning, TEXT("| %s | 13: ** Dispatch DONE **  | NoiseMapComputeShader DONE"), *ThreadName);
-	/*float* NoiseMap_ptr = NoiseMap.get();
-	for (int index = 0; index < mapChunkSize * mapChunkSize; index += FMath::DivideAndRoundUp(mapChunkSize * mapChunkSize, 50))
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 7: Launching ENQUEUE_RENDER_COMMAND thread..."), *ThreadName);
+	if (!IsInRenderingThread())
 	{
-		float value = NoiseMap_ptr[index];
-		UE_LOG(LogTemp, Warning, TEXT("        index: %d   |   value: %f"), index, value);
-	}*/
+		UE_LOG(LogTemp, Warning, TEXT("|    |	 : NOT IN RENDERING THREAD... WE GOOD!"), *ThreadName);
+		// Enqueue a render command to call MyFunction on the render thread
+		ENQUEUE_RENDER_COMMAND(MyRenderCommand)(
+			[&Params, noiseMap, &ComputeShaderMutex, NoiseMapCompletionEvent](FRHICommandListImmediate& RHICmdList) mutable
+			{
+				FNoiseMapComputeShaderInterface::ExecuteNoiseMapComputeShader(
+					GetImmediateCommandList_ForRenderCommand(),
+					Params,
+					noiseMap,
+					ComputeShaderMutex,
+					NoiseMapCompletionEvent);
+			});
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("|    |	 : IN RENDERING THREAD WHEN WE SHOULDN'T BE..."), *ThreadName);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 7.5: NoiseMapCompletionEvent->Wait() CALLED"), *ThreadName);
+	NoiseMapCompletionEvent->Wait();
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 7.6: NoiseMapCompletionEvent->Wait() COMPLETED"), *ThreadName);
+
+	delete[] octaveOffsets;
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 14: ** Dispatch DONE **  | NoiseMapComputeShader DONE"), *ThreadName);
 }
 
 
-void ProceduralGeneration::ApplyFalloffMap(std::shared_ptr<float[]> noiseMap, const int32& mapChunkSize, float& a, float& b, float& c)
+void ProceduralGeneration::ApplyFalloffMap(float*& noiseMap, const int32& mapChunkSize, float& a, float& b, float& c)
 {
 	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 	const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
 
 	UE_LOG(LogTemp, Warning, TEXT(""));
-	UE_LOG(LogTemp, Warning, TEXT("| %s | 14: ApplyFalloffMap CALLED"), *ThreadName);
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 15: ApplyFalloffMap CALLED"), *ThreadName);
 
 	for (int i = 0; i < mapChunkSize * mapChunkSize; i++)
 	{
@@ -135,18 +133,18 @@ void ProceduralGeneration::ApplyFalloffMap(std::shared_ptr<float[]> noiseMap, co
 		float value = FMath::Sqrt(FMath::Pow(x, 2) + FMath::Pow(y, 2));
 
 
-		*(noiseMap.get() + i) = FMath::Clamp(*(noiseMap.get() + i) - calculateFalloff(value, a, b, c), 0.0f, 1.0f);
+		*(noiseMap + i) = FMath::Clamp(*(noiseMap + i) - calculateFalloff(value, a, b, c), 0.0f, 1.0f);
 	}
 }
 
 
-void ProceduralGeneration::ApplyErosionMap(std::shared_ptr<float[]> noiseMap, const int32& mapChunkSize, const int32& seed, int32& dropletLifetime, const int32& numIterations)
+void ProceduralGeneration::ApplyErosionMap(float*& noiseMap, const int32& mapChunkSize, const int32& seed, int32& dropletLifetime, const int32& numIterations)
 {
 	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 	const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
 
 	UE_LOG(LogTemp, Warning, TEXT(""));
-	UE_LOG(LogTemp, Warning, TEXT("| %s | 15: ApplyErosionMap CALLED"), *ThreadName);
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 16: ApplyErosionMap CALLED"), *ThreadName);
 
 	FRandomStream prng = FRandomStream(seed);
 
@@ -191,7 +189,8 @@ void ProceduralGeneration::ApplyErosionMap(std::shared_ptr<float[]> noiseMap, co
 	}
 }
 
-
+/*
+*
 
 void ProceduralGeneration::GenerateNoiseMap_OLD(std::vector<float>& noiseMap, const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaveCount, float& persistance, float& lacurnarity)
 {
@@ -357,7 +356,8 @@ void ProceduralGeneration::ApplyErosionMap_OLD(std::vector<float>& noiseMap, con
 	}
 }
 
-
+*
+*/
 
 float ProceduralGeneration::calculateWeightCurve(float vertexHeight, float exponent) {
 	float output = pow(vertexHeight, exponent);

@@ -41,6 +41,8 @@
 //}
 
 
+
+/*
 FGeneratedMeshData UGenerateTerrainBPCallable::GenerateProceduralMeshData_OLD(const int32 mapChunkSize, int32 seed, FVector2D offset, int32 levelOfDetail, 
 																		  float noiseScale, int octaves, float persistance, float lacunarity, float heightMultiplier, 
 																		  float weightCurveExponent, float a, float b, float c)
@@ -87,3 +89,4 @@ FGeneratedMeshData UGenerateTerrainBPCallable::GenerateProceduralMeshData_OLD(co
 
 	return meshData;
 }
+*/

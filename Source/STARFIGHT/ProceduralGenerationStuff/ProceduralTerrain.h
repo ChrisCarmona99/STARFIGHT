@@ -5,7 +5,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 
-//#include "ProceduralMeshComponent.h"
+#include "RHIGPUReadback.h"
+
 #include "ProceduralGeneration.h"
 #include "MeshData.h"
 
@@ -105,7 +106,7 @@ public:
 
 	static void ExecuteProceduralMeshGeneration(FProceduralMeshInputs& Inputs);
 
-	static void GenerateProceduralMeshData(std::shared_ptr<FGeneratedMeshData> MeshData, FProceduralMeshInputs& Inputs, FEvent* CompletionEvent);
+	static void GenerateProceduralMeshData(std::shared_ptr<FGeneratedMeshData> MeshData, FProceduralMeshInputs& Inputs);
 
 	static void AddNormalAndTangent(std::shared_ptr<FGeneratedMeshData> meshData, int& vertexIndex);
 

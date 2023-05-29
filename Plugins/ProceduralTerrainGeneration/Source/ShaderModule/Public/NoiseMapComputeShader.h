@@ -6,6 +6,10 @@
 #include "GenericPlatform/GenericPlatformMisc.h"
 #include "Kismet/BlueprintAsyncActionBase.h"
 
+#include <thread>
+#include <mutex>
+#include <chrono>
+
 #include "NoiseMapComputeShader.generated.h"
 
 
@@ -18,16 +22,17 @@ struct SHADERMODULE_API FNoiseMapComputeShaderDispatchParams
 	int X;
 	int Y;
 	int Z;
+	int THREAD_GROUPS_X;
 
-
+	
 	int32 mapChunkSize[1];
 	float noiseScale[1];
 	int32 octaveCount[1];
 	float persistance[1];
 	float lacurnarity[1];
-	std::shared_ptr<FVector2f[]> octaveOffsets;
+	FVector2f* octaveOffsets;
 
-	std::shared_ptr<float[]> noiseMap;
+	float* noiseMap;
 
 };
 
@@ -38,7 +43,7 @@ class SHADERMODULE_API FNoiseMapComputeShaderInterface
 {
 
 public:
-
+	/*
 	//// (DEC & DEF): Dispatches this shader. Can be called from any thread
 	//static void Dispatch(FNoiseMapComputeShaderDispatchParams Params,
 	//					 TFunction<void(std::shared_ptr<float[]> OUTPUT)> AsyncCallback)
@@ -64,17 +69,23 @@ public:
 	//			DispatchRenderThread(RHICmdList, Params, AsyncCallback);
 	//		});
 	//}
+	*/
 	
 
 	// Executes this shader on the render thread:
-	static void DispatchRenderThread(FRHICommandListImmediate& RHICmdList,
-									 FNoiseMapComputeShaderDispatchParams Params,
-									 std::shared_ptr<float[]> NoiseMap);
+	static void ExecuteNoiseMapComputeShader(
+		FRHICommandListImmediate& RHICmdList,
+		FNoiseMapComputeShaderDispatchParams Params,
+		float*& noiseMap,
+		std::mutex& ComputeShaderMutex,
+		FEvent* NoiseMapCompletionEvent);
 
+	/*
 	// Executes this shader on the render thread:
 	static void DispatchRenderThread_OLD(FRHICommandListImmediate& RHICmdList,
 		FNoiseMapComputeShaderDispatchParams Params,
 		TFunction<void(std::shared_ptr<float[]> OUTPUT)> AsyncCallback);
+	*/
 
 };
 

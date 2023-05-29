@@ -11,12 +11,9 @@
 #include "CanvasTypes.h"
 #include "MaterialShader.h"
 
-#include <chrono>
-#include <thread>
 #include "HAL/ThreadManager.h"
 #include "RenderGraph.h" // Included this for `FRDGSyncEventRef`, but couldn't get the dependency import to work (RenderCoreTypes)
 #include "RHIGPUReadback.h"
-#include "RHICommandList.h"
 
 DECLARE_STATS_GROUP(TEXT("NoiseMapComputeShader"), STATGROUP_NoiseMapComputeShader, STATCAT_Advanced);
 DECLARE_CYCLE_STAT(TEXT("NoiseMapComputeShader Execute"), STAT_NoiseMapComputeShader_Execute, STATGROUP_NoiseMapComputeShader);
@@ -50,12 +47,18 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, lacurnarity)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<FVector2f>, octaveOffsets) // On the shader side: float3 MyVector;
 
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float>, noiseMap)
-		//SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, noiseMap)
+		//SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float>, noiseMap)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, noiseMap)
 
 		END_SHADER_PARAMETER_STRUCT()
 
 };
+
+
+
+
+
+
 
 
 
@@ -65,26 +68,35 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FNoiseMapComputeShader, "/Plugins/ProceduralTerrainGeneration/NoiseMapComputeShader.usf", "NoiseMapComputeShader", SF_Compute);
 
 
-void FNoiseMapComputeShaderInterface::DispatchRenderThread(FRHICommandListImmediate& RHICmdList,
-														   FNoiseMapComputeShaderDispatchParams Params,
-														   std::shared_ptr<float[]> NoiseMap)
+
+void FNoiseMapComputeShaderInterface::ExecuteNoiseMapComputeShader(
+	FRHICommandListImmediate& RHICmdList,
+	FNoiseMapComputeShaderDispatchParams Params,
+	float*& noiseMap,
+	std::mutex& ComputeShaderMutex,
+	FEvent* NoiseMapCompletionEvent)
 {
+	//ComputeShaderMutex.lock();
+	//std::lock_guard<std::mutex> lock(ComputeShaderMutex);
+
 	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 	const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
 
 	UE_LOG(LogTemp, Warning, TEXT(""));
-	UE_LOG(LogTemp, Warning, TEXT("| %s | 7: DispatchRenderThread CALLED"), *ThreadName);
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 9: DispatchRenderThread CALLED"), *ThreadName);
 	
 	// Create the GraphBuilder Instance:
 	FRDGBuilder GraphBuilder(RHICmdList);
 
+	//// Initialize a Readback Buffer:
+	//FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("ExecuteNoiseMapComputeShaderOutput"));
 
-	// Instantiate a Readback Buffer:
-	FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("ExecuteNoiseMapComputeShaderOutput"));
+	//// Initialize a Permutation Vector:
+	//typename FNoiseMapComputeShader::FPermutationDomain PermutationVector;
 
-	typename FNoiseMapComputeShader::FPermutationDomain PermutationVector;
+	//// Initialize the noiseMap Compute Shader instance:
+	//TShaderMapRef<FNoiseMapComputeShader> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
-	TShaderMapRef<FNoiseMapComputeShader> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
 	// Define variables that will be used outside of the code block that sets all of our queues on the Graph Builder:
 	int vertexCount = 0;
@@ -96,10 +108,11 @@ void FNoiseMapComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 			RDG_EVENT_SCOPE(GraphBuilder, "NoiseMapComputeShader");
 		RDG_GPU_STAT_SCOPE(GraphBuilder, NoiseMapComputeShader);
 
-		/*typename FNoiseMapComputeShader::FPermutationDomain PermutationVector;
+		// Initialize a Permutation Vector:
+		typename FNoiseMapComputeShader::FPermutationDomain PermutationVector;
 
-		TShaderMapRef<FNoiseMapComputeShader> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);*/
-
+		// Initialize the noiseMap Compute Shader instance:
+		TShaderMapRef<FNoiseMapComputeShader> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
 		bool bIsShaderValid = ComputeShader.IsValid();
 
@@ -108,11 +121,7 @@ void FNoiseMapComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 			// Allocate a parameter struct 'PassParameters' with a lifetime tied to graph execution
 			FNoiseMapComputeShader::FParameters* PassParameters = GraphBuilder.AllocParameters<FNoiseMapComputeShader::FParameters>();
 
-			// SET PassParameters:
-			
-			/*
-			* From here, use our FRDGBuilder instance 'GraphBuilder' to create the various buffer objects:
-			*/
+			// Create all the Buffer parameters:
 			uint32 BytesPerElement;
 			uint32 NumElements;
 			void* InitialData;
@@ -169,73 +178,72 @@ void FNoiseMapComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 			// octaveOffsets:
 			BytesPerElement = sizeof(FVector2f);
 			NumElements = Params.octaveCount[0];
-			InitialData = reinterpret_cast<void*>(Params.octaveOffsets.get()); // NOTE: This is how you can cast to a 'void*' when using shared pointers
+			//InitialData = reinterpret_cast<void*>(Params.octaveOffsets.get()); // NOTE: This is how you can cast to a 'void*' when using shared pointers
+			InitialData = (void*)Params.octaveOffsets;
 			InitialDataSize = BytesPerElement * NumElements;
 
 			FRDGBufferRef octaveOffsetsBuffer = CreateUploadBuffer(GraphBuilder, TEXT("octaveOffsetsBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize);
 			PassParameters->octaveOffsets = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(octaveOffsetsBuffer, PF_R32_SINT));
 
-			// noiseMap NEW:
+
+
+
+			// noiseMap:
+			// 
+			//BytesPerElement = sizeof(float);
+			//NumElements = Params.mapChunkSize[0] * Params.mapChunkSize[0];
+			////InitialData = reinterpret_cast<void*>(Params.noiseMap.get());
+			//InitialData = (void*)Params.noiseMap;
+			//InitialDataSize = BytesPerElement * NumElements;
+			////InitialDataSize = 0; // Because our noiseMap is just a nullptr, are initial data size is just 0, making it any greater would cause 
+			//FRDGBufferRef noiseMapBuffer = CreateStructuredBuffer(
+			//	GraphBuilder, 										  
+			//	TEXT("noiseMapBuffer"), 								  
+			//	BytesPerElement, 						  
+			//	NumElements, 								      
+			//	InitialData, 									  
+			//	InitialDataSize, 									  
+			//	ERDGInitialDataFlags::None);
+			//PassParameters->noiseMap = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(noiseMapBuffer, PF_R32_SINT));
+
 			BytesPerElement = sizeof(float);
 			NumElements = Params.mapChunkSize[0] * Params.mapChunkSize[0];
-			InitialData = reinterpret_cast<void*>(Params.noiseMap.get());
-			//InitialDataSize = BytesPerElement * NumElements;
-			InitialDataSize = 0; // Because our noiseMap is just a nullptr, are initial data size is just 0, making it any greater would cause 
-
-			FRDGBufferRef noiseMapBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("noiseMapBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize, ERDGInitialDataFlags::None);
+			FRDGBufferRef noiseMapBuffer = GraphBuilder.CreateBuffer(
+				FRDGBufferDesc::CreateBufferDesc(
+					BytesPerElement,
+					NumElements),
+				TEXT("noiseMapBuffer"));
 			PassParameters->noiseMap = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(noiseMapBuffer, PF_R32_SINT));
 
-			/*
-			TRefCountPtr<FRDGPooledBuffer> pooled_noiseMap;
-
-			GraphBuilder.QueueBufferExtraction(
-				noiseMapBuffer,
-				&pooled_noiseMap,
-				ERHIAccess::CPURead);
-			*/
 			
+
 
 
 			// Get the number of groups to dispatch to our compute shader:
 			int32 groupSize = FComputeShaderUtils::kGolden2DGroupSize; // This parameter is set to 8, apparently this is the "Ideal size of group size 8x8 to occupy at least an entire wave on GCN, two warp on Nvidia"
-			FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(FIntVector(Params.X, Params.Y, Params.Z), 1); // Resulting group count for X, Y, Z == Params.<>/groupSize rounded up for each
-
-
-			//FRHIGPUSyncEvent* SyncEvent = RHICreateGPUSyncEvent(TEXT("MySyncEvent"));
-
+			FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(FIntVector(Params.X, Params.Y, Params.Z), Params.THREAD_GROUPS_X); // Resulting group count for X, Y, Z == Params.<>/groupSize rounded up for each
 
 			// Adds a lambda pass to the graph with a runtime-generated parameter struct:
-			GraphBuilder.AddPass(RDG_EVENT_NAME("ExecuteNoiseMapComputeShader"),
-								 PassParameters,
-								 ERDGPassFlags::AsyncCompute,
-								 [&PassParameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
-								 {
-								 	FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GroupCount);
-								 });
-
-			// Add a fence to ensure that MyFirstPass completes before MySecondPass begins
-			//GraphBuilder.AddWaitForEvent(FRDGWaitForPass::On(MyFirstPassHandle), ERDGPassFlags::Compute);
-
-			// Create an RDG sync event
-			//FRDGSyncEventRef ComputeDoneEvent = GraphBuilder.CreateSyncEvent(FName("ComputeDone"));
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("ExecuteNoiseMapComputeShader"),
+				PassParameters,
+				ERDGPassFlags::AsyncCompute,
+				[&PassParameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
+				{
+					FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GroupCount);
+				});
 
 
-			//FRDGBufferDesc BufferDesc = FRDGBufferDesc::Create2DDesc(
-			//	FIntPoint(1, 1),
-			//	PF_R32_UINT,
-			//	FClearValueBinding::None,
-			//	TexCreate_ShaderResource | TexCreate_UAV);
+			/*auto GroupCount = FComputeShaderUtils::GetGroupCount(FIntVector(Params.X, Params.Y, Params.Z), FComputeShaderUtils::kGolden2DGroupSize);
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("ExecuteMySimpleComputeShader"),
+				PassParameters,
+				ERDGPassFlags::AsyncCompute,
+				[&PassParameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
+				{
+					FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GroupCount);
+				});*/
 
-			//FRDGBufferRef BufferToModify = GraphBuilder.CreateBuffer(BufferDesc);
-
-			//// Wait for the compute shader pass to complete
-			//GraphBuilder.AddWaitForPass(
-			//	RDG_EVENT_NAME("WaitForMyComputePass"),
-			//	ERHITransitionAccessType::Global,
-			//	ERHIAccess::SRVMask,
-			//	FComputeShaderUtils::GetComputeShaderOutputUAV(Parameters->OutputBuffer),
-			//	ERHIAccess::UAVMask
-			//);
 
 			/*
 			*	In summary, CopyBuffer is a simpler, synchronous function that can be used for small buffer copies 
@@ -246,30 +254,78 @@ void FNoiseMapComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 			// Adds a "Copy" pass that, when called, will copy the data from a buffer that exists on the GPU (noiseMapBuffer) do a variable on the local thread the graph was executed on (GPUBufferReadback):
 			vertexCount = Params.mapChunkSize[0] * Params.mapChunkSize[0];
 			ByteCount = sizeof(float) * (vertexCount);
-			AddEnqueueCopyPass(GraphBuilder, GPUBufferReadback, noiseMapBuffer, ByteCount);  // NOTE: Passing '0u' for the 'uint32 NumBytes' parameter just means that the entire buffer will be copied over
+			FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("ExecuteNoiseMapComputeShaderOutput"));
+			AddEnqueueCopyPass(GraphBuilder, GPUBufferReadback, noiseMapBuffer, 0u);  // NOTE: Passing '0u' for the 'uint32 NumBytes' parameter just means that the entire buffer will be copied over
 
 
-			//FRHIGPUFence* GPUFence = RHICreateGPUFence(TEXT("NoiseMapComputeShaderFence"));
+			
+			// Define Runner Lambda to wait recursively check if GPUBufferReadback is ready by enqueing itself on the `ActualRenderingThread` thread:
+			auto RunnerFunc = [GPUBufferReadback, NoiseMapCompletionEvent, &noiseMap, vertexCount, ByteCount](auto&& RunnerFunc) mutable -> void
+			{
+				uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+				const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
+				FPlatformProcess::Sleep(0.05f);
 
-			// Wait for the fence to be signaled before accessing the data
-			//GraphBuilder.RHICmdWaitForFence(Fence, RTF_Default);
+				// If our GPU readback is complete, then unlock the buffer, read from it, set our output variables with the contents in the buffer, and execute this all on the main thread...
+				if (GPUBufferReadback->IsReady())
+				{
+					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: Buffer READY"), *ThreadName);
 
+					// Wait a small amount of time for synchonization purposes:
+					FPlatformProcess::Sleep(0.05f);
 
+					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: Pulling data from GPUBufferReadback into BUFFER..."), *ThreadName);
+					//std::shared_ptr<float[]> BUFFER(reinterpret_cast<float*>(GPUBufferReadback->Lock(ByteCount)));
+					float* BUFFER = (float*)GPUBufferReadback->Lock(ByteCount);
+					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: BUFFER instantiated!"), *ThreadName);
 
-			//// Create a new instance of your compute shader task
-			//TGraphTask<FMyComputeShaderTask>* MyComputeShaderTask = new (TGraphTask<FMyComputeShaderTask>::CreateTask()) FMyComputeShaderTask(ComputeShader, RenderTarget);
+					//  Debug Stuff:
+					float testVal1 = BUFFER[0];
+					float testVal2 = BUFFER[1];
+					float testVal3 = BUFFER[2];
+					float testVal4 = BUFFER[3]; // Choose some random index to read from
+					float testVal5 = BUFFER[vertexCount - 1];
+					/*for (int index = 0; index < vertexCount; index += FMath::DivideAndRoundUp(vertexCount, 50))
+					{
+						UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD:			index: %d   |   value: %f"), index, BUFFER[index]);
+					}*/
 
-			//// Create a lambda function that will create the mesh once the compute shader task has completed
-			//auto CreateMeshLambda = [MyComputeShaderTask, Mesh]() {
-			//	MyComputeShaderTask->WaitUntilTaskCompletes();
-			//	// create your mesh using the results of the compute shader
-			//};
+					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: Copying BUFFER contents to noiseMap"), *ThreadName);
+					//std::copy(BUFFER.get(), BUFFER.get() + vertexCount, noiseMap.get());
+					noiseMap = BUFFER;
+					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: BUFFER copy done!"), *ThreadName);
 
-			//// Get a reference to the compute graph event
-			//FGraphEventRef ComputeGraphEvent = MyComputeShaderTask->GetCompletionEvent();
+					GPUBufferReadback->Unlock();
 
-			//// Add the CreateMesh lambda function to the graph and specify that it should only run after the compute graph event has completed
-			//FFunctionGraphTask::CreateAndDispatchWhenReady(CreateMeshLambda, TStatId{}, & ComputeGraphEvent, ENamedThreads::GameThread);
+					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: Deleting GPUBufferReadback"), *ThreadName);
+					delete GPUBufferReadback;
+
+					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: Triggering NoiseMapCompletionEvent"), *ThreadName);
+					NoiseMapCompletionEvent->Trigger();
+				}
+				// If our GPU readback is NOT complete, then just execute our 'RunnerFunc' AGAIN on our Rendering thread (non-game thread) again and see if it will be ready by the next execution:
+				else
+				{
+					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: Buffer NOT READY"), *ThreadName);
+					AsyncTask(ENamedThreads::ActualRenderingThread,
+						[RunnerFunc]() mutable
+						{
+							RunnerFunc(RunnerFunc);
+						});
+				}
+			};
+
+			// Call our 'RunnerFunc' asynchronously for the FIRST TIME on our Rendering thread ('RunnerFunc' will keep calling this Async func again and again until the GPU has outputed its contents into our 'GPUBufferReadback':
+			UE_LOG(LogTemp, Warning, TEXT("| %s |	10: AsyncTask CALLED FIRST TIME"), *ThreadName);
+			AsyncTask(ENamedThreads::ActualRenderingThread,
+				[RunnerFunc]() mutable
+				{
+					uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+					const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
+					UE_LOG(LogTemp, Warning, TEXT("| %s |	    GPU Waiting Started..."), *ThreadName);
+
+					RunnerFunc(RunnerFunc); //Call RunnerFunc and pass an instance of itself so that it can recursively call itself within another 'AsyncTask' call if the GPU is not done yet
+				});
 
 		}
 		else {
@@ -279,17 +335,35 @@ void FNoiseMapComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 	}
 
 
-	UE_LOG(LogTemp, Warning, TEXT("| %s |	8: GraphBuilder.Execute() EXECUTED"), *ThreadName);
-	GraphBuilder.Execute();
+	// OLD ATTEMPTS:
+	/*
+	* 
+	* 
+	//UE_LOG(LogTemp, Warning, TEXT("| %s |	8: GraphBuilder.Execute() EXECUTED"), *ThreadName);
 
-	RHICmdList.WaitForRHIThreadTasks();
+	//GraphBuilder.Execute();
 
-	UE_LOG(LogTemp, Warning, TEXT("| %s |	9: GraphBuilder.Execute() FINISHED"), *ThreadName);
+	//UE_LOG(LogTemp, Warning, TEXT("| %s |	9: GraphBuilder.Execute() FINISHED"), *ThreadName);
+
+
+	//UE_LOG(LogTemp, Warning, TEXT("| %s |	10: AllPassesCompleted->Wait() EXECUTED"), *ThreadName);
+
+	//AllPassesCompleted->Wait();
+	//UE_LOG(LogTemp, Warning, TEXT("| %s |	10.1: GPUWaitThread DISPATCHED"), *ThreadName);
+	//std::thread GPUWaitThread(WaitForGPUBuffer, PassCompletionEvent, GPUBufferReadback);
 
 
 
-	UE_LOG(LogTemp, Warning, TEXT("| %s |	10: CommandList.RHIThreadFence() EXECUTED"), *ThreadName);
+
+
+	//UE_LOG(LogTemp, Warning, TEXT("| %s |	10.4: GPUWaitThread.join() EXECUTED"), *ThreadName);
+	//GPUWaitThread.join();
+	//UE_LOG(LogTemp, Warning, TEXT("| %s |	10.5: GPUWaitThread.join() JOINED"), *ThreadName);
 	
+	//RHICmdList.WaitForRHIThreadTasks();
+
+
+
 	//FGraphEventArray Prerequisites;
 
 	//TGraphTask<ComputeShader>* ComputeTask = new (TGraphTask<ComputeShader>::CreateTask()) ComputeShader(RHICmdList, GPUBufferReadback);
@@ -300,51 +374,32 @@ void FNoiseMapComputeShaderInterface::DispatchRenderThread(FRHICommandListImmedi
 	//// Get a reference to the compute graph event
 	//FGraphEventRef ComputeGraphEvent = MyComputeShaderTask->GetCompletionEvent();
 
-	//// Add the CreateMesh lambda function to the graph and specify that it should only run after the compute graph event has completed
-	//FFunctionGraphTask::CreateAndDispatchWhenReady(CreateMeshLambda, TStatId{}, & ComputeGraphEvent, ENamedThreads::GameThread);
 
 	//RHICmdList.CreateComputeFence(TEXT("NoiseMapComputeShader"));
 	//FRHIComputeFence* ComputeFence = RHICreateComputeFence(TEXT("NoiseMapComputeShader"));
 	//RHICmdList.WaitComputeFence(ComputeFence);
 
-	/*while (!GPUBufferReadback->IsReady())
-	{
-		FPlatformProcess::Sleep(0.50f);
-		UE_LOG(LogTemp, Warning, TEXT("| %s |	WAITING.... "), *ThreadName);
-	}*/
-
-	UE_LOG(LogTemp, Warning, TEXT("| %s |	11: CommandList.RHIThreadFence() FINISHED"), *ThreadName);
+	//UE_LOG(LogTemp, Warning, TEXT("| %s |	11: AllPassesCompleted->Wait() FINISHED"), *ThreadName);
 
 	//CommandList.EnqueueSetGPUFence(GPUFence, CommandList);
 	//GPUFence->Wait();
 
-	
+	//FGPUFenceRHIRef GPUFence = RHICmdList.CreateGPUFence(TEXT("GPUFence"));
+	//RHICmdList.WriteGPUFence(GPUFence);
+	*
+	*
+	*/
 
-	// Verify the GPU Buffer is ready to be read from, then set our NoiseMap to the output:
-	if (GPUBufferReadback->IsReady())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("| %s |	12.A: GPUBufferReadback READY"), *ThreadName);
 
-		std::shared_ptr<float[]> BUFFER(reinterpret_cast<float*>(GPUBufferReadback->Lock(ByteCount)));
+	UE_LOG(LogTemp, Warning, TEXT("| %s |	10: GraphBuilder.Execute() EXECUTED"), *ThreadName);
+	GraphBuilder.Execute();
 
-		// Set output variable:
-		NoiseMap = BUFFER;
-
-		// Unlock and Delete the GPU Buffer after we're done reading from it:
-		GPUBufferReadback->Unlock();
-		delete GPUBufferReadback;
-	}
-	// If our GPU readback is NOT complete, then just execute our 'RunnerFunc' AGAIN on our Rendering thread (non-game thread) again and see if it will be ready by the next execution:
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("| %s | 12.B: GPUBufferReadback NOT READY.... WE SHOULD BE WAITING HERE..."), *ThreadName);
-	}
+	UE_LOG(LogTemp, Warning, TEXT("| %s |	11: ExecuteNoiseMapComputeShader EXITING....."), *ThreadName);
 }
 
 
 
-
-
+/*
 void FNoiseMapComputeShaderInterface::DispatchRenderThread_OLD(FRHICommandListImmediate& RHICmdList,
 	FNoiseMapComputeShaderDispatchParams Params,
 	TFunction<void(std::shared_ptr<float[]> OUTPUT)> AsyncCallback)
@@ -373,9 +428,7 @@ void FNoiseMapComputeShaderInterface::DispatchRenderThread_OLD(FRHICommandListIm
 			FNoiseMapComputeShader::FParameters* PassParameters = GraphBuilder.AllocParameters<FNoiseMapComputeShader::FParameters>();
 
 
-			/*
-			* From here, use our FRDGBuilder instance 'GraphBuilder' to create the various buffer objects:
-			*/
+			// From here, use our FRDGBuilder instance 'GraphBuilder' to create the various buffer objects:
 			uint32 BytesPerElement;
 			uint32 NumElements;
 			void* InitialData;
@@ -440,12 +493,12 @@ void FNoiseMapComputeShaderInterface::DispatchRenderThread_OLD(FRHICommandListIm
 
 
 			// noiseMap:
-			/*NumElements = Params.mapChunkSize[0] * Params.mapChunkSize[0] + 1;
-			UE_LOG(LogTemp, Warning, TEXT("noiseMapBuffer NumElements + 1 == %d"), NumElements);
-			Desc = FRDGBufferDesc::CreateBufferDesc(sizeof(float), NumElements);
-
-			FRDGBufferRef noiseMapBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("noiseMapBuffer"));
-			PassParameters->noiseMap = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(noiseMapBuffer, PF_R32_SINT));*/
+			//NumElements = Params.mapChunkSize[0] * Params.mapChunkSize[0] + 1;
+			//UE_LOG(LogTemp, Warning, TEXT("noiseMapBuffer NumElements + 1 == %d"), NumElements);
+			//Desc = FRDGBufferDesc::CreateBufferDesc(sizeof(float), NumElements);
+			// 
+			//FRDGBufferRef noiseMapBuffer = GraphBuilder.CreateBuffer(Desc, TEXT("noiseMapBuffer"));
+			//PassParameters->noiseMap = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(noiseMapBuffer, PF_R32_SINT));
 
 			BytesPerElement = sizeof(float);
 			NumElements = Params.mapChunkSize[0] * Params.mapChunkSize[0];
@@ -487,12 +540,12 @@ void FNoiseMapComputeShaderInterface::DispatchRenderThread_OLD(FRHICommandListIm
 
 
 			// Adds a pass to readback contents of an RDG buffer:
-			/*
-			* PARAMS:
-			*	SourceBuffer: specifies the GPU buffer whose contents you want to copy
-			*	Readback: specifies the CPU buffer into which you want to copy the contents of SourceBuffer
-			*	NumBytes: specifies the number of bytes to copy
-			*/
+			// *
+			//* PARAMS:
+			//*	SourceBuffer: specifies the GPU buffer whose contents you want to copy
+			//*	Readback: specifies the CPU buffer into which you want to copy the contents of SourceBuffer
+			//*	NumBytes: specifies the number of bytes to copy
+			//
 
 			// AddEnqueueCopyPass(GraphBuilder, GPUBufferReadback, noiseMapBuffer, 0u); // Passing '0u' for the 'uint32 NumBytes' parameter just means that the entire buffer will be copied over
 			AddEnqueueCopyPass(GraphBuilder, GPUBufferReadback, noiseMapBuffer, ByteCount);
@@ -567,3 +620,6 @@ void FNoiseMapComputeShaderInterface::DispatchRenderThread_OLD(FRHICommandListIm
 	GraphBuilder.Execute();
 	UE_LOG(LogTemp, Warning, TEXT("DispatchRenderThread FINISHED"));
 }
+
+*/
+
