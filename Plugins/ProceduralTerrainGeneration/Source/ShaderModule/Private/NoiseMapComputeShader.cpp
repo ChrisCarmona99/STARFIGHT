@@ -50,13 +50,48 @@ public:
 		//SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float>, noiseMap)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, noiseMap)
 
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		const FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		return true;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		const FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		/*
+		* Here you define constants that can be used statically in the shader code.
+		* Example:
+		*/
+		// OutEnvironment.SetDefine(TEXT("MY_CUSTOM_CONST"), TEXT("1"));
+
+		/*
+		* These defines are used in the thread count section of our shader
+		* 
+		* NOTE: These values will NOT update after modification UNLESS the shader is re-compiled... this only happens when something changes in the shader...
+		*/
+		int32 NUM_THREADS_X = 1024;
+		int32 NUM_THREADS_Y = 1;
+		int32 NUM_THREADS_Z = 1;
+
+		OutEnvironment.SetDefine(TEXT("THREAD_COUNT_X"), NUM_THREADS_X);
+		OutEnvironment.SetDefine(TEXT("THREAD_COUNT_Y"), NUM_THREADS_Y);
+		OutEnvironment.SetDefine(TEXT("THREAD_COUNT_Z"), NUM_THREADS_Z);
+
+		// This shader must support typed UAV load and we are testing if it is supported at runtime using RHIIsTypedUAVLoadSupported
+		//OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
+
+		// FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
+	}
+private:
 };
-
-
-
-
 
 
 
@@ -66,6 +101,8 @@ public:
 // 
 //                            ShaderType                            ShaderPath										Shader function name    Type
 IMPLEMENT_GLOBAL_SHADER(FNoiseMapComputeShader, "/Plugins/ProceduralTerrainGeneration/NoiseMapComputeShader.usf", "NoiseMapComputeShader", SF_Compute);
+
+
 
 
 
@@ -87,16 +124,6 @@ void FNoiseMapComputeShaderInterface::ExecuteNoiseMapComputeShader(
 	
 	// Create the GraphBuilder Instance:
 	FRDGBuilder GraphBuilder(RHICmdList);
-
-	//// Initialize a Readback Buffer:
-	//FRHIGPUBufferReadback* GPUBufferReadback = new FRHIGPUBufferReadback(TEXT("ExecuteNoiseMapComputeShaderOutput"));
-
-	//// Initialize a Permutation Vector:
-	//typename FNoiseMapComputeShader::FPermutationDomain PermutationVector;
-
-	//// Initialize the noiseMap Compute Shader instance:
-	//TShaderMapRef<FNoiseMapComputeShader> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
-
 
 	// Define variables that will be used outside of the code block that sets all of our queues on the Graph Builder:
 	int vertexCount = 0;
@@ -187,7 +214,6 @@ void FNoiseMapComputeShaderInterface::ExecuteNoiseMapComputeShader(
 
 
 
-
 			// noiseMap:
 			// 
 			//BytesPerElement = sizeof(float);
@@ -217,11 +243,14 @@ void FNoiseMapComputeShaderInterface::ExecuteNoiseMapComputeShader(
 
 			
 
-
-
 			// Get the number of groups to dispatch to our compute shader:
 			int32 groupSize = FComputeShaderUtils::kGolden2DGroupSize; // This parameter is set to 8, apparently this is the "Ideal size of group size 8x8 to occupy at least an entire wave on GCN, two warp on Nvidia"
-			FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(FIntVector(Params.X, Params.Y, Params.Z), Params.THREAD_GROUPS_X); // Resulting group count for X, Y, Z == Params.<>/groupSize rounded up for each
+			UE_LOG(LogTemp, Warning, TEXT("| %s |	 #: Params.THREAD_GROUPS_X == %d"), *ThreadName, Params.THREAD_GROUPS_X);
+			//FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(FIntVector(Params.X, Params.Y, Params.Z), Params.THREAD_GROUPS_X); // Resulting group count for X, Y, Z == Params.<>/groupSize rounded up for each
+			FIntVector GroupCount = FIntVector(Params.THREAD_GROUPS_X, 1, 1);
+			UE_LOG(LogTemp, Warning, TEXT("| %s |	 #: FIntVector GroupCount == (%d, %d, %d)"), *ThreadName, GroupCount.X, GroupCount.Y, GroupCount.Z);
+
+
 
 			// Adds a lambda pass to the graph with a runtime-generated parameter struct:
 			GraphBuilder.AddPass(
@@ -232,18 +261,7 @@ void FNoiseMapComputeShaderInterface::ExecuteNoiseMapComputeShader(
 				{
 					FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GroupCount);
 				});
-
-
-			/*auto GroupCount = FComputeShaderUtils::GetGroupCount(FIntVector(Params.X, Params.Y, Params.Z), FComputeShaderUtils::kGolden2DGroupSize);
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("ExecuteMySimpleComputeShader"),
-				PassParameters,
-				ERDGPassFlags::AsyncCompute,
-				[&PassParameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
-				{
-					FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GroupCount);
-				});*/
-
+			
 
 			/*
 			*	In summary, CopyBuffer is a simpler, synchronous function that can be used for small buffer copies 
@@ -274,33 +292,15 @@ void FNoiseMapComputeShaderInterface::ExecuteNoiseMapComputeShader(
 					// Wait a small amount of time for synchonization purposes:
 					FPlatformProcess::Sleep(0.05f);
 
-					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: Pulling data from GPUBufferReadback into BUFFER..."), *ThreadName);
 					//std::shared_ptr<float[]> BUFFER(reinterpret_cast<float*>(GPUBufferReadback->Lock(ByteCount)));
 					float* BUFFER = (float*)GPUBufferReadback->Lock(ByteCount);
-					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: BUFFER instantiated!"), *ThreadName);
 
-					//  Debug Stuff:
-					float testVal1 = BUFFER[0];
-					float testVal2 = BUFFER[1];
-					float testVal3 = BUFFER[2];
-					float testVal4 = BUFFER[3]; // Choose some random index to read from
-					float testVal5 = BUFFER[vertexCount - 1];
-					/*for (int index = 0; index < vertexCount; index += FMath::DivideAndRoundUp(vertexCount, 50))
-					{
-						UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD:			index: %d   |   value: %f"), index, BUFFER[index]);
-					}*/
-
-					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: Copying BUFFER contents to noiseMap"), *ThreadName);
-					//std::copy(BUFFER.get(), BUFFER.get() + vertexCount, noiseMap.get());
-					noiseMap = BUFFER;
-					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: BUFFER copy done!"), *ThreadName);
+					std::memcpy(noiseMap, BUFFER, vertexCount * sizeof(float));
 
 					GPUBufferReadback->Unlock();
 
-					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: Deleting GPUBufferReadback"), *ThreadName);
 					delete GPUBufferReadback;
 
-					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: Triggering NoiseMapCompletionEvent"), *ThreadName);
 					NoiseMapCompletionEvent->Trigger();
 				}
 				// If our GPU readback is NOT complete, then just execute our 'RunnerFunc' AGAIN on our Rendering thread (non-game thread) again and see if it will be ready by the next execution:

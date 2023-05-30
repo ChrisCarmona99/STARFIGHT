@@ -69,19 +69,19 @@ float Lerp(float value1, float value2, float factor)
 	return value1 * (1 - factor) + value2 * factor;
 }
 
-float InverseLerp(float min, float max, float value)
+float InverseLerp(float minimum, float maximum, float value)
 {
-	return (value - min) / (max - min);
+	return (value - minimum) / (maximum - minimum);
 }
 
-float PerlinNoise(float2 sample)
+float PerlinNoise(float2 mapSample)
 {
-	float Xfl = floor(sample.x);		// LWC_TODO: Precision loss
-	float Yfl = floor(sample.y);
+	float Xfl = floor(mapSample.x);		// LWC_TODO: Precision loss
+	float Yfl = floor(mapSample.y);
 	int Xi = (int)(Xfl) & 255;
 	int Yi = (int)(Yfl) & 255;
-	float X = (float)sample.x - Xfl;
-	float Y = (float)sample.y - Yfl;
+	float X = (float)mapSample.x - Xfl;
+	float Y = (float)mapSample.y - Yfl;
 	float Xm1 = X - 1.0f;
 	float Ym1 = Y - 1.0f;
 
@@ -105,31 +105,33 @@ float PerlinNoise(float2 sample)
 
 
 
-[numthreads(1024, 1, 1)]
+
+
+[numthreads(THREAD_COUNT_X, THREAD_COUNT_Y, THREAD_COUNT_Z)]
 void NoiseMapComputeShader
-	   (
-		uint3 GroupID : SV_GroupID, // The index for a particular thread group as an (X, Y, Z) coordinate index
-		uint GROUP_INDEX : SV_GroupIndex,  // THIS IS THE ONE... An index for a specific thread group but "flattened" into a linear dimension (see notes on how this is calculated)
-		uint3 GroupThreadID : SV_GroupThreadID,  // The index of the current thread within the current thread group as an (X, Y, Z) coordinate index
-		uint3 DispatchThreadId : SV_DispatchThreadID  // The index of the current thread within the ENTIRE dispatch call... so basically every thread within every thread group!
-	   ) 
+	(
+		uint3 dispatchThreadId : SV_DispatchThreadID, 
+		uint3 groupThreadId : SV_GroupThreadID, 
+		uint3 groupId : SV_GroupID,
+		uint GROUP_INDEX : SV_GroupIndex  // THIS IS THE ONE... An index for a specific thread group but "flattened" into a linear dimension (see notes on how this is calculated)
+	)
 {
-	uint3 NUM_THREADS = uint3(1024, 1, 1);
-	// uint THREAD_INDEX = DispatchThreadId.z * NUM_THREADS.x * NUM_THREADS.y + DispatchThreadId.y * NUM_THREADS.x + DispatchThreadId.x;
-	// uint THREAD_INDEX = GROUP_INDEX + NUM_THREADS.x * NUM_THREADS.y * NUM_THREADS.z + GroupThreadID.z * NUM_THREADS.x * NUM_THREADS.y + GroupThreadID.y * NUM_THREADS.x + GroupThreadID.x;
+    // Calculate the flattened thread ID given the current thread index of the group + the total thread-per-group factor:
+	uint flattenedThreadID = GROUP_INDEX + (groupId.x * THREAD_COUNT_X);
 
 	// Check if the current "THREAD_INDEX" has exceeded the vertex count of our map (mapChunkSize[0] * mapChunkSize[0]),
 	// meaning we have exceeded the size of our heightMap buffer and we don't need to keep generating any more vertex heights
-	if ( (int)GROUP_INDEX < (mapChunkSize[0] * mapChunkSize[0]))
+	if ( (int)flattenedThreadID < (mapChunkSize[0] * mapChunkSize[0]))
 	{
+		// NOTE: Hardcoding these values here for now until I decide how best to handle the inverse lerp of all the returned perlin noise values... (spoiler I might do this in the next compute shader)
 		float maxNoiseHeight = 0;
-		float minNoiseHeight = 1;
+		float minNoiseHeight = -5;
 
 		float halfWidth = (float)mapChunkSize[0] / 2.0f;
 		float halfHeight = (float)mapChunkSize[0] / 2.0f;
 
-		int x = GROUP_INDEX % mapChunkSize[0];
-		int y = (int)floor(GROUP_INDEX / mapChunkSize[0]);
+		int x = flattenedThreadID % mapChunkSize[0];
+		int y = (int)floor(flattenedThreadID / mapChunkSize[0]);
 
 		float amplitude = 1;
 		float frequency = 1;
@@ -139,39 +141,37 @@ void NoiseMapComputeShader
 		{
 			float sampleX = (x - halfWidth) / noiseScale[0] * frequency + octaveOffsets[i].x;
 			float sampleY = (y - halfHeight) / noiseScale[0] * frequency + octaveOffsets[i].y;
-			float2 sample = float2(sampleX, sampleY);
+			float2 mapSample = float2(sampleX, sampleY);
 
-			// float perlinValue = 1.0;
-			// float perlinValue = noise(sample) * 2 - 1; // we multiply by '2' then subtract '1' so that our values can be negative!!
-			float perlinValue = PerlinNoise(sample); // we multiply by '2' then subtract '1' so that our values can be negative!!
+			// float perlinValue = noise(mapSample) * 2 - 1; // we multiply by '2' then subtract '1' so that our values can be negative!!
+			float perlinValue = PerlinNoise(mapSample); // we multiply by '2' then subtract '1' so that our values can be negative!!
 			perlinValue = perlinValue * 2 - 1;
 			noiseHeight += perlinValue * amplitude;
 
 			amplitude *= persistance[0];  // Decreases with each octave
-			// amplitude.mul_assign(persistance);
 			frequency *= lacurnarity[0]; // multiplied by 'lacurnarity' so the frequency increases each octave (since lacurnarity is always greater than 1)
-			// frequency.mul_assign(lacurnarity);
 		}
 
-		// BIG flaw with this code; for the inverse lerp to take full effect, we need to be doing this check after we've filled the map with it's unfiltered perlin values...
-		if (noiseHeight > maxNoiseHeight)
-		{
-			maxNoiseHeight = noiseHeight;
-		}
-		else if (noiseHeight < minNoiseHeight)
-		{
-			minNoiseHeight = noiseHeight;
-		}
+		// // BIG flaw with this code; for the inverse lerp to take full effect, we need to be doing this check after we've filled the map with it's unfiltered perlin values...
+		// if (noiseHeight > maxNoiseHeight)
+		// {
+		// 	maxNoiseHeight = noiseHeight;
+		// }
+		// else if (noiseHeight < minNoiseHeight)
+		// {
+		// 	minNoiseHeight = noiseHeight;
+		// }
+		noiseHeight = InverseLerp(minNoiseHeight, maxNoiseHeight, noiseHeight);
+
+
+		// float original;
+		// InterlockedExchange(noiseMap[THREAD_INDEX], (float)THREAD_INDEX, original);
+
 
 		// noiseMap[THREAD_INDEX] = InverseLerp(minNoiseHeight, maxNoiseHeight, noiseHeight);
 
-		// noiseMap[THREAD_INDEX] = (float)THREAD_INDEX;
-
-		// float original = noiseMap[THREAD_INDEX];
-		// float original;
-		// InterlockedExchange(noiseMap[THREAD_INDEX], (float)THREAD_INDEX, original);
-		// InterlockedExchange(noiseMap[THREAD_INDEX], 6.9f, original);
-		noiseMap[GROUP_INDEX] = (float)GROUP_INDEX;
+		// noiseMap[flattenedThreadID] = (float)flattenedThreadID;
+		noiseMap[flattenedThreadID] = noiseHeight;
 
 	}
 	else
@@ -181,3 +181,5 @@ void NoiseMapComputeShader
 		// noiseMap[THREAD_INDEX] = 7.2f;
 	}
 }
+
+

@@ -103,6 +103,8 @@ public:
 
 	static void CreateTestTriangle(UProceduralMeshComponent* proceduralTerrainMesh);
 
+	static void BuildTerrainMesh(UProceduralMeshComponent* proceduralTerrainMesh, std::shared_ptr<FGeneratedMeshData> meshData);
+
 
 	static void ExecuteProceduralMeshGeneration(FProceduralMeshInputs& Inputs);
 

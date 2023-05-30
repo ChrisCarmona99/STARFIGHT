@@ -42,8 +42,6 @@ void ProceduralGeneration::GenerateNoiseMap(float*& noiseMap, const int32& mapCh
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 6: GenerateNoiseMap CALLED"), *ThreadName);
 
 
-	//std::shared_ptr<FVector2f[]> octaveOffsets(new FVector2f[octaveCount]);
-	//FVector2f* octaveOffsets_ptr = octaveOffsets.get();
 	FVector2f* octaveOffsets = new FVector2f[octaveCount];
 
 	FRandomStream prng = FRandomStream(seed);
@@ -54,11 +52,8 @@ void ProceduralGeneration::GenerateNoiseMap(float*& noiseMap, const int32& mapCh
 		octaveOffsets[i] = FVector2f(offsetX, offsetY);
 	}
 
-	/*if (noiseScale <= 0) {
-		noiseScale = 0.0001f;
-	}*/
-
-	int THREADS_X = 1024; // This is hardcoded for now, but just the number of threads set in the compute shader in the x dimension
+	// Define our Compute Shader's input parameters:
+	int THREADS_X = 1024;
 	int THREADS_Y = 1;
 	int THREADS_Z = 1;
 	int THREAD_GROUPS_X = FMath::DivideAndRoundUp(mapChunkSize * mapChunkSize, THREADS_X);
@@ -105,6 +100,7 @@ void ProceduralGeneration::GenerateNoiseMap(float*& noiseMap, const int32& mapCh
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 7.5: NoiseMapCompletionEvent->Wait() CALLED"), *ThreadName);
 	NoiseMapCompletionEvent->Wait();
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 7.6: NoiseMapCompletionEvent->Wait() COMPLETED"), *ThreadName);
+
 
 	delete[] octaveOffsets;
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 14: ** Dispatch DONE **  | NoiseMapComputeShader DONE"), *ThreadName);
