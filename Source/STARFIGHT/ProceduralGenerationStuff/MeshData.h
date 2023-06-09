@@ -70,9 +70,16 @@ struct FProceduralMeshInputs {
 	// Default Constructor DECLARATION:
 	FORCEINLINE FProceduralMeshInputs();
 
-	// 
+
 	UPROPERTY(VisibleAnywhere)
 		UProceduralMeshComponent* proceduralTerrainMesh;
+
+
+	UPROPERTY(BlueprintReadWrite)
+		bool APPLY_FALLOFF_MAP;
+
+	UPROPERTY(BlueprintReadWrite)
+		bool APPLY_EROSION_MAP;
 
 
 	UPROPERTY(BlueprintReadWrite)

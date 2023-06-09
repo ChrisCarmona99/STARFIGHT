@@ -20,10 +20,7 @@ DECLARE_CYCLE_STAT(TEXT("NoiseMapComputeShader Execute"), STAT_NoiseMapComputeSh
 
 
 /*
-*
-*
 * This class carries our parameter declarations and acts as the bridge between cpp and HLSL.
-*
 *
 * DEC & DEF in the .cpp file because this class is only used in 'DispatchRenderThread'
 */
@@ -46,6 +43,8 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, persistance)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, lacurnarity)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<FVector2f>, octaveOffsets) // On the shader side: float3 MyVector;
+
+		//SHADER_PARAMETER_UAV(RW_STRUCTURED_BUFFER<float>, someParam)
 
 		//SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float>, noiseMap)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, noiseMap)
@@ -553,7 +552,6 @@ void FNoiseMapComputeShaderInterface::DispatchRenderThread_OLD(FRHICommandListIm
 			//// Enqueue a copy command to copy the output data from the GPU to the CPU
 			//FRDGBufferRef OutputBuffer = GraphBuilder.RegisterExternalBuffer();
 			//CopyBuffer(GraphBuilder, OutputBuffer, PassParameters->OutputBuffer);
-
 
 
 			// Define's a lambda for our Compute Shader that will grab the output from our 'GPUBufferReadback' and populate our output variables with it, or call our async func again to wait for our GPU to be done:

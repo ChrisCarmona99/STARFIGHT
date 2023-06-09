@@ -7,6 +7,7 @@
 
 #include "RHIGPUReadback.h"
 
+#include "ShaderModule/Public/NormalsAndTangentsCS.h"
 #include "ProceduralGeneration.h"
 #include "MeshData.h"
 
@@ -35,6 +36,9 @@ public:
 	// Components:
 	UPROPERTY(VisibleAnywhere, Category = "Mesh Components")
 		UProceduralMeshComponent* _ProceduralTerrainMesh;
+
+	UPROPERTY(EditAnywhere, Category = "Mesh Components")
+		UMaterialInterface* _TerrainMaterial;
 
 	// Mesh Parameters:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "1. Mesh Parameters")
@@ -100,6 +104,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Execute")
 		bool GENERATE_IN_EDITOR;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Execute")
+		bool APPLY_FALLOFF_MAP;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Execute")
+		bool APPLY_EROSION_MAP;
+
 
 	static void CreateTestTriangle(UProceduralMeshComponent* proceduralTerrainMesh);
 
@@ -110,6 +120,6 @@ public:
 
 	static void GenerateProceduralMeshData(std::shared_ptr<FGeneratedMeshData> MeshData, FProceduralMeshInputs& Inputs);
 
-	static void AddNormalAndTangent(std::shared_ptr<FGeneratedMeshData> meshData, int& vertexIndex);
+	static void AddNormalsAndTangents(float*& normals, float*& tangents, float*& noiseMap, const int32& mapChunkSize);
 
 };

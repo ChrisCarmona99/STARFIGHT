@@ -1,6 +1,5 @@
 #include "/Engine/Public/Platform.ush"
 
-
 Buffer<int> mapChunkSize;
 Buffer<float> noiseScale;
 Buffer<int> octaveCount;
@@ -12,6 +11,10 @@ Buffer<float2> octaveOffsets;
 // RWBuffer<float> noiseMap : register(u0);
 RWBuffer<float> noiseMap;
 
+
+
+
+// UE5's Perlin Noise Implementation:
 
 static int Permutation[512] = 
 	{
@@ -105,8 +108,6 @@ float PerlinNoise(float2 mapSample)
 
 
 
-
-
 [numthreads(THREAD_COUNT_X, THREAD_COUNT_Y, THREAD_COUNT_Z)]
 void NoiseMapComputeShader
 	(
@@ -139,13 +140,14 @@ void NoiseMapComputeShader
 
 		for (int i = 0; i < octaveCount[0]; i++)
 		{
+			
 			float sampleX = (x - halfWidth) / noiseScale[0] * frequency + octaveOffsets[i].x;
 			float sampleY = (y - halfHeight) / noiseScale[0] * frequency + octaveOffsets[i].y;
 			float2 mapSample = float2(sampleX, sampleY);
 
 			// float perlinValue = noise(mapSample) * 2 - 1; // we multiply by '2' then subtract '1' so that our values can be negative!!
-			float perlinValue = PerlinNoise(mapSample); // we multiply by '2' then subtract '1' so that our values can be negative!!
-			perlinValue = perlinValue * 2 - 1;
+			float perlinValue = PerlinNoise(mapSample);
+			perlinValue = perlinValue * 2 - 1; // we multiply by '2' then subtract '1' so that our values can be negative!!
 			noiseHeight += perlinValue * amplitude;
 
 			amplitude *= persistance[0];  // Decreases with each octave
@@ -167,19 +169,234 @@ void NoiseMapComputeShader
 		// float original;
 		// InterlockedExchange(noiseMap[THREAD_INDEX], (float)THREAD_INDEX, original);
 
-
-		// noiseMap[THREAD_INDEX] = InverseLerp(minNoiseHeight, maxNoiseHeight, noiseHeight);
-
-		// noiseMap[flattenedThreadID] = (float)flattenedThreadID;
 		noiseMap[flattenedThreadID] = noiseHeight;
-
-	}
-	else
-	{
-		// float original;
-		// InterlockedExchange(noiseMap[THREAD_INDEX], 7.2f, original);
-		// noiseMap[THREAD_INDEX] = 7.2f;
 	}
 }
 
 
+
+
+
+
+
+
+
+
+
+
+// // Sebastian Lague's Implementation (Uses code found online):
+
+// float3 mod289(float3 x)
+// {
+//     return x - floor(x / 289.0) * 289.0;
+// }
+
+// float2 mod289(float2 x)
+// {
+//     return x - floor(x / 289.0) * 289.0;
+// }
+
+// float3 permute(float3 x)
+// {
+//     return mod289((x * 34.0 + 1.0) * x);
+// }
+
+// float3 taylorInvSqrt(float3 r)
+// {
+//     return 1.79284291400159 - 0.85373472095314 * r;
+// }
+
+// float snoise(float2 v)
+// {
+//     const float4 C = float4( 0.211324865405187,  // (3.0-sqrt(3.0))/6.0
+//                              0.366025403784439,  // 0.5*(sqrt(3.0)-1.0)
+//                             -0.577350269189626,  // -1.0 + 2.0 * C.x
+//                              0.024390243902439); // 1.0 / 41.0
+//     // First corner
+//     float2 i  = floor(v + dot(v, C.yy));
+//     float2 x0 = v -   i + dot(i, C.xx);
+
+//     // Other corners
+//     float2 i1;
+//     i1.x = step(x0.y, x0.x);
+//     i1.y = 1.0 - i1.x;
+
+//     // x1 = x0 - i1  + 1.0 * C.xx;
+//     // x2 = x0 - 1.0 + 2.0 * C.xx;
+//     float2 x1 = x0 + C.xx - i1;
+//     float2 x2 = x0 + C.zz;
+
+//     // Permutations
+//     i = mod289(i); // Avoid truncation effects in permutation
+//     float3 p =
+//       permute(permute(i.y + float3(0.0, i1.y, 1.0))
+//                     + i.x + float3(0.0, i1.x, 1.0));
+
+//     float3 m = max(0.5 - float3(dot(x0, x0), dot(x1, x1), dot(x2, x2)), 0.0);
+//     m = m * m;
+//     m = m * m;
+
+//     // Gradients: 41 points uniformly over a line, mapped onto a diamond.
+//     // The ring size 17*17 = 289 is close to a multiple of 41 (41*7 = 287)
+//     float3 x = 2.0 * frac(p * C.www) - 1.0;
+//     float3 h = abs(x) - 0.5;
+//     float3 ox = floor(x + 0.5);
+//     float3 a0 = x - ox;
+
+//     // Normalise gradients implicitly by scaling m
+//     m *= taylorInvSqrt(a0 * a0 + h * h);
+
+//     // Compute final noise value at P
+//     float3 g;
+//     g.x = a0.x * x0.x + h.x * x0.y;
+//     g.y = a0.y * x1.x + h.y * x1.y;
+//     g.z = a0.z * x2.x + h.z * x2.y;
+//     return (130.0 * dot(m, g)) * 0.5 + 0.5;
+// }
+
+
+
+// [numthreads(THREAD_COUNT_X, THREAD_COUNT_Y, THREAD_COUNT_Z)]
+// void NoiseMapComputeShader
+// 	(
+// 		uint3 dispatchThreadId : SV_DispatchThreadID, 
+// 		uint3 groupThreadId : SV_GroupThreadID, 
+// 		uint3 groupId : SV_GroupID,
+// 		uint GROUP_INDEX : SV_GroupIndex  // THIS IS THE ONE... An index for a specific thread group but "flattened" into a linear dimension (see notes on how this is calculated)
+// 	)
+// {
+//     // Calculate the flattened thread ID given the current thread index of the group + the total thread-per-group factor:
+// 	uint flattenedThreadID = GROUP_INDEX + (groupId.x * THREAD_COUNT_X);
+
+// 	// Check if the current "THREAD_INDEX" has exceeded the vertex count of our map (mapChunkSize[0] * mapChunkSize[0]),
+// 	// meaning we have exceeded the size of our heightMap buffer and we don't need to keep generating any more vertex heights
+// 	if ( (int)flattenedThreadID < (mapChunkSize[0] * mapChunkSize[0]))
+// 	{
+// 		// NOTE: Hardcoding these values here for now until I decide how best to handle the inverse lerp of all the returned perlin noise values... (spoiler I might do this in the next compute shader)
+// 		float maxNoiseHeight = 0;
+// 		float minNoiseHeight = -5;
+
+// 		float halfWidth = (float)mapChunkSize[0] / 2.0f;
+// 		float halfHeight = (float)mapChunkSize[0] / 2.0f;
+
+// 		int x = flattenedThreadID % mapChunkSize[0];
+// 		int y = (int)floor(flattenedThreadID / mapChunkSize[0]);
+
+// 		float amplitude = 1;
+// 		float frequency = 1;
+
+// 		float noiseHeight = 0;
+
+// 		for (int i = 0; i < octaveCount[0]; i++)
+// 		{
+// 			// float sampleX = (x - halfWidth) / noiseScale[0] * frequency + octaveOffsets[i].x;
+// 			// float sampleY = (y - halfHeight) / noiseScale[0] * frequency + octaveOffsets[i].y;
+// 			// float2 mapSample = float2(sampleX, sampleY);
+
+// 			// float perlinValue = PerlinNoise(mapSample); // we multiply by '2' then subtract '1' so that our values can be negative!!
+// 			// perlinValue = perlinValue * 2 - 1;
+// 			float perlinValue = snoise(float2(x,y)/noiseScale[0] * frequency + octaveOffsets[i]) * amplitude;
+// 			noiseHeight += perlinValue;
+
+// 			amplitude *= persistance[0];  // Decreases with each octave
+// 			frequency *= lacurnarity[0]; // multiplied by 'lacurnarity' so the frequency increases each octave (since lacurnarity is always greater than 1)
+// 		}
+
+// 		// // BIG flaw with this code; for the inverse lerp to take full effect, we need to be doing this check after we've filled the map with it's unfiltered perlin values...
+// 		// if (noiseHeight > maxNoiseHeight)
+// 		// {
+// 		// 	maxNoiseHeight = noiseHeight;
+// 		// }
+// 		// else if (noiseHeight < minNoiseHeight)
+// 		// {
+// 		// 	minNoiseHeight = noiseHeight;
+// 		// }
+// 		noiseHeight = InverseLerp(minNoiseHeight, maxNoiseHeight, noiseHeight);
+
+
+// 		// float original;
+// 		// InterlockedExchange(noiseMap[THREAD_INDEX], (float)THREAD_INDEX, original);
+
+// 		noiseMap[flattenedThreadID] = noiseHeight;
+// 	}
+// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// // 3rd Try (From this link: https://lodev.org/cgtutor/randomnoise.html):
+
+// // Constants
+// #define MT_N 624
+// #define MT_M 397
+// #define MATRIX_A 0x9908B0DF
+// #define UPPER_MASK 0x80000000
+// #define LOWER_MASK 0x7FFFFFFF
+
+// // State variables
+// uint mt[MT_N];
+// uint mti;
+
+// void InitializeMersenneTwister(uint seed)
+// {
+//     mt[0] = seed;
+//     for (uint i = 1; i < MT_N; ++i)
+//     {
+//         mt[i] = (1812433253U * (mt[i - 1] ^ (mt[i - 1] >> 30)) + i);
+//     }
+//     mti = MT_N;
+// }
+
+// uint ExtractMersenneTwister()
+// {
+//     const uint mag01[2] = { 0, MATRIX_A };
+
+//     if (mti >= MT_N)
+//     {
+//         for (uint i = 0; i < MT_N - MT_M; ++i)
+//         {
+//             uint y = (mt[i] & UPPER_MASK) | (mt[i + 1] & LOWER_MASK);
+//             mt[i] = mt[i + MT_M] ^ (y >> 1) ^ mag01[y & 1];
+//         }
+//         for (uint i = MT_N - MT_M; i < MT_N - 1; ++i)
+//         {
+//             uint y = (mt[i] & UPPER_MASK) | (mt[i + 1] & LOWER_MASK);
+//             mt[i] = mt[i + MT_M - MT_N] ^ (y >> 1) ^ mag01[y & 1];
+//         }
+//         uint y = (mt[MT_N - 1] & UPPER_MASK) | (mt[0] & LOWER_MASK);
+//         mt[MT_N - 1] = mt[MT_M - 1] ^ (y >> 1) ^ mag01[y & 1];
+
+//         mti = 0;
+//     }
+
+//     uint y = mt[mti++];
+//     y ^= (y >> 11);
+//     y ^= (y << 7) & 0x9D2C5680;
+//     y ^= (y << 15) & 0xEFC60000;
+//     y ^= (y >> 18);
+
+//     return y;
+// }
+
+// float RandomFloat(float2 seed)
+// {
+//     uint value = ExtractMersenneTwister();
+//     return float(value) / float(0xFFFFFFFF);
+// }
+
+// float2 RandomFloat2(float2 seed)
+// {
+//     return float2(RandomFloat(seed), RandomFloat(seed + 1.0f));
+// }

@@ -2,6 +2,7 @@
 
 
 #include "ProceduralTerrain.h"
+#include "Components/StaticMeshComponent.h"
 #include <chrono>
 #include <thread>
 #include "HAL/ThreadManager.h"
@@ -12,8 +13,8 @@ auto debugPrint = [](const FString ThreadName, float*& NoiseMap, FProceduralMesh
 	float min = 0;
 	float max = 0;
 	UE_LOG(LogTemp, Warning, TEXT("| %s | #: TESTING NoiseMap POST NoiseMapComputeShader:"), *ThreadName);
-	for (int index = 0; index < Inputs.mapChunkSize * Inputs.mapChunkSize; index += FMath::DivideAndRoundUp(Inputs.mapChunkSize * Inputs.mapChunkSize, 50))
-		//for (int index = 0; index < Inputs.mapChunkSize * Inputs.mapChunkSize; index++)
+	//for (int index = 0; index < Inputs.mapChunkSize * Inputs.mapChunkSize; index += FMath::DivideAndRoundUp(Inputs.mapChunkSize * Inputs.mapChunkSize, 50))
+	for (int index = 0; index < 500; index++)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("        index: %d   |   value: %f"), index, NoiseMap[index]);
 		//min = (NoiseMap[index] < min) ? NoiseMap[index] : min;
@@ -56,8 +57,9 @@ AProceduralTerrain::AProceduralTerrain() :
 	NumIterations(1000), // NOTE: Control how many droplets to simulate
 	
 	// Execute
-	GENERATE_IN_EDITOR(true)
-
+	GENERATE_IN_EDITOR(true),
+	APPLY_FALLOFF_MAP(true),
+	APPLY_EROSION_MAP(true)
 
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
@@ -65,6 +67,9 @@ AProceduralTerrain::AProceduralTerrain() :
 
 	//_ProceduralTerrainMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("GeneratedMesh"));
 	RootComponent = _ProceduralTerrainMesh;
+
+	// Setup the terrain material:
+	_TerrainMaterial = CreateDefaultSubobject<UMaterialInterface>("TerrainMaterial");
 
 	// New in UE 4.17, multi-threaded PhysX cooking:
 	_ProceduralTerrainMesh->bUseAsyncCooking = true;
@@ -97,11 +102,14 @@ void AProceduralTerrain::OnConstruction(const FTransform& Transform)
 	UE_LOG(LogTemp, Warning, TEXT(""));
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 1: OnConstruction CALLED"), *ThreadName);
 
+	// Update Terrain Material:
+	_ProceduralTerrainMesh->SetMaterial(0, _TerrainMaterial);
+
 	// Perform input value boundry checks:
 	MapChunkSize = (MapChunkSize < 2) ? 2 : MapChunkSize;
 	NoiseScale = (NoiseScale < 0.0001f) ? 0.0001f : NoiseScale;
 	Lacurnarity = (Lacurnarity < 1) ? 1 : Lacurnarity;
-	Octaves = (Octaves < 0) ? 0 : Octaves;
+	Octaves = (Octaves < 1) ? 1 : Octaves;
 	Persistence = (Persistence < 0) ? 0 : (Persistence > 1) ? 1 : Persistence;
 	WeightCurveExponent = (WeightCurveExponent < 1.0f) ? 1.0f : WeightCurveExponent;
 	LevelOfDetail = (LevelOfDetail < 0) ? 0 : (LevelOfDetail > 6) ? 6 : LevelOfDetail;
@@ -109,6 +117,8 @@ void AProceduralTerrain::OnConstruction(const FTransform& Transform)
 	// Set our `Inputs` struct:
 	FProceduralMeshInputs Inputs;
 	Inputs.proceduralTerrainMesh = _ProceduralTerrainMesh;
+	Inputs.APPLY_FALLOFF_MAP = APPLY_FALLOFF_MAP;
+	Inputs.APPLY_EROSION_MAP = APPLY_EROSION_MAP;
 
 	Inputs.mapChunkSize = MapChunkSize;
 	Inputs.seed = Seed;
@@ -251,8 +261,8 @@ void AProceduralTerrain::ExecuteProceduralMeshGeneration(FProceduralMeshInputs& 
 			UE_LOG(LogTemp, Warning, TEXT("| %s | 18: GenerateProceduralMeshData FINISHED"), *ThreadName);
 
 
-			UE_LOG(LogTemp, Warning, TEXT("| %s | 19: CALLING ASYNC TASK ON GAME THREAD..."), *ThreadName);
 			// At this point, our terrain mesh values have been generated, so queue the mesh creation on the game thread passing in those parameters:
+			UE_LOG(LogTemp, Warning, TEXT("| %s | 19: CALLING ASYNC TASK ON GAME THREAD..."), *ThreadName);
 			AsyncTask(ENamedThreads::GameThread,
 				[Inputs, MeshData]()
 				{
@@ -260,9 +270,9 @@ void AProceduralTerrain::ExecuteProceduralMeshGeneration(FProceduralMeshInputs& 
 					const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
 
 					UE_LOG(LogTemp, Warning, TEXT("| %s | 20: BUILDING MESH"), *ThreadName);
-					AProceduralTerrain::CreateTestTriangle(Inputs.proceduralTerrainMesh);
-					//AProceduralTerrain::BuildTerrainMesh(Inputs.proceduralTerrainMesh, MeshData);
-					UE_LOG(LogTemp, Warning, TEXT("| %s | 20: BUILDING MESH DONE!!!"), *ThreadName);
+					//AProceduralTerrain::CreateTestTriangle(Inputs.proceduralTerrainMesh);
+					AProceduralTerrain::BuildTerrainMesh(Inputs.proceduralTerrainMesh, MeshData);
+					UE_LOG(LogTemp, Warning, TEXT("| %s | 21: BUILDING MESH DONE!!!"), *ThreadName);
 				});
 		});
 	
@@ -283,43 +293,55 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 	// Create a new `Noise Map` array:
 	float* NoiseMap = new float[Inputs.mapChunkSize * Inputs.mapChunkSize];
 
+
 	// Generate the Perline Noise values:
 	ProceduralGeneration::GenerateNoiseMap(NoiseMap, Inputs.mapChunkSize, Inputs.seed, Inputs.offset, Inputs.noiseScale, Inputs.octaves, Inputs.persistence, Inputs.lacunarity);
 
-	debugPrint(ThreadName, NoiseMap, Inputs);
 
 	// Apply the Falloff map:
-	ProceduralGeneration::ApplyFalloffMap(NoiseMap, Inputs.mapChunkSize, Inputs.a, Inputs.b, Inputs.c);
+	if (Inputs.APPLY_FALLOFF_MAP == true)
+	{
+		ProceduralGeneration::ApplyFalloffMap(NoiseMap, Inputs.mapChunkSize, Inputs.a, Inputs.b, Inputs.c);
+	}
+	else {
+		UE_LOG(LogTemp, Warning, TEXT("| %s | 15: ApplyFalloffMap NOT applied..."), *ThreadName);
+	}
+	
 
 	// Apply the Erosion map:
-	ProceduralGeneration::ApplyErosionMap(NoiseMap, Inputs.mapChunkSize, Inputs.seed, Inputs.dropletLifetime, Inputs.numIterations);
+	if (Inputs.APPLY_EROSION_MAP == true)
+	{
+		ProceduralGeneration::ApplyErosionMap(NoiseMap, Inputs.mapChunkSize, Inputs.seed, Inputs.dropletLifetime, Inputs.numIterations);
+	}
+	
+
+	// Generate Normals and Tangets:
+	float* Normals = new float[Inputs.mapChunkSize * Inputs.mapChunkSize * 3];
+	float* Tangents = new float[Inputs.mapChunkSize * Inputs.mapChunkSize * 3];
+	AProceduralTerrain::AddNormalsAndTangents(Normals, Tangents, NoiseMap, Inputs.mapChunkSize);
+	for (int index = 0; index < 500; index++)
+	{	
+		UE_LOG(LogTemp, Warning, TEXT("        index: %d   |   normal == (%f, %f, %f)    |    tangent == (%f, %f, %f)"), 
+								      index, Normals[index*3], Normals[index * 3 + 1], Normals[index * 3 + 2], Tangents[index * 3], Tangents[index * 3 + 1], Tangents[index * 3 + 2]);
+	}
 
 
-	// Sets the starting traversal point for all the vertices
-	//		In UE5, the x-axis and y-axis are flipped... +x is 'forward' and +y is 'to the right'
-	float topMostX = (Inputs.mapChunkSize - 1) / 2.f; // +x
-	float leftMostY = (Inputs.mapChunkSize - 1) / -2.f; // -y
+	// Sets the starting traversal point for all the vertices (NOTE: In UE5, the x-axis and y-axis are flipped... +x is 'forward' and +y is 'to the right'):
+	float topMostX = (float)(Inputs.mapChunkSize - 1) / 2.0f; // +x
+	float leftMostY = (float)(Inputs.mapChunkSize - 1) / -2.0f; // -y
 
 	// Calculates the increment for mesh LODs (ensures 'levelOfDetail' is NOT 0):
 	int32 LODincrement = Inputs.levelOfDetail == 0 ? 1 : Inputs.levelOfDetail * 2;
-
-	// Calculates correct number of vertic  es for our 'vertices' array:
+	// Calculates correct number of vertices for our 'vertices' array:
 	int32 verticesPerLine = ((Inputs.mapChunkSize - 1) / LODincrement) + 1;
 
 	// Populate MeshData (TODO: Make HLSL):
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 17: Populating `MeshData`:"), *ThreadName);
-	int printIncrement = FMath::DivideAndRoundUp(Inputs.mapChunkSize * Inputs.mapChunkSize, 50);
-	int printIndex = printIncrement;
 	for (int i = 0; i < Inputs.mapChunkSize * Inputs.mapChunkSize; i++)
 	{
 		// Define our proportionate 'x' and 'y' indices so that we can map our 1D vector too an 'x' and 'y' coordinate for our vertex
 		int y = i % Inputs.mapChunkSize; // inner vector, traverses the y-axis (left to right)
 		int x = std::floor(i / Inputs.mapChunkSize); // outer vector, traveres the x-axis (top to bottom)
-
-		if (i == printIndex) { 
-			UE_LOG(LogTemp, Warning, TEXT("        index: %d   |   (X, Y): (%d, %d)"), i, x, y);
-			printIndex += printIncrement;
-		}
 
 		// Define the height for the current vertex in our iteration
 		float currentHeight = ProceduralGeneration::calculateWeightCurve(NoiseMap[i], Inputs.weightCurveExponent) * Inputs.heightMultiplier;
@@ -327,10 +349,12 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 		// Add Vertices, UVs, VertexColors, and Triangles:
 		MeshData->vertices.Add(FVector(topMostX - x, leftMostY + y, currentHeight));
 		MeshData->uvs.Add(FVector2D(x, y));
-		MeshData->vertexColorsNEW.Add(FColor(0.50, 0.75, 1.00, 1.0));
+		MeshData->vertexColors.Add(FLinearColor(0.75, 0.75, 0.75, 1.0));
 
 		// Add Normals and Tangents:
-		AProceduralTerrain::AddNormalAndTangent(MeshData, i);
+		int i2 = i * 3;
+		MeshData->normals.Add(FVector(Normals[i2], Normals[i2 + 1], Normals[i2 + 2]));
+		MeshData->tangents.Add(FProcMeshTangent(Tangents[i2], Tangents[i2 + 1], Tangents[i2 + 2]));
 
 		// Add Triangles:
 		if (y < Inputs.mapChunkSize - 1 && x < Inputs.mapChunkSize - 1)
@@ -339,23 +363,76 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 			MeshData->AddTriangle(i, i + verticesPerLine, i + verticesPerLine + 1);
 			MeshData->AddTriangle(i + verticesPerLine + 1, i + 1, i);
 		}
+
+		if (i < 500) {
+			UE_LOG(LogTemp, Warning, TEXT("        index: %d   |   (X, Y)  |  (topMostX - x, leftMostY + y, Z)     :     (%d, %d)  |  (%f, %f, %f)"), i, x, y, topMostX - x, leftMostY + y, currentHeight);
+		}
 	}
 
 	// DONE WITH ALL NESH GENERATION TASKS... DEALLOCATE EVERTHING THAT'S NOT MeshData:
-	UE_LOG(LogTemp, Warning, TEXT("| %s | 17.1: Deleting NoiseMap"), *ThreadName);
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 17.1: Deleting NoiseMap, Normals, and Tangents"), *ThreadName);
 	delete[] NoiseMap;
-	UE_LOG(LogTemp, Warning, TEXT("| %s | 17.2: NoiseMap deleted!"), *ThreadName);
+	delete[] Normals;
+	delete[] Tangents;
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 17.2: NoiseMap, Normals, and Tangents deleted!"), *ThreadName);
 }
 
 
 
-void AProceduralTerrain::AddNormalAndTangent(std::shared_ptr<FGeneratedMeshData> meshData, int& vertexIndex)
+void AProceduralTerrain::AddNormalsAndTangents(float*& normals, float*& tangents, float*& noiseMap, const int32& mapChunkSize)
 {
-	TArray<FVector> vertices = meshData->vertices;
-	TArray<int32> triangles = meshData->triangles;
+	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+	const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
 
-	meshData->normals.Add(FVector(0.0f, 0.0f, 0.0f));
-	bool bFlipBitangent = true;
-	meshData->tangents.Add(FProcMeshTangent(FVector(0.0f, 0.0f, 0.0f), bFlipBitangent));
+	UE_LOG(LogTemp, Warning, TEXT(""));
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 6: AddNormalsAndTangents CALLED"), *ThreadName);
+
+
+	// Define our Compute Shader's input parameters:
+	int THREADS_X = 1024;
+	int THREADS_Y = 1;
+	int THREADS_Z = 1;
+	int THREAD_GROUPS_X = FMath::DivideAndRoundUp(mapChunkSize * mapChunkSize, THREADS_X);
+
+	FNormalsAndTangentsCSDispatchParams Params(THREADS_X, THREADS_Y, THREADS_Z);
+	Params.THREAD_GROUPS_X = THREAD_GROUPS_X;
+
+	Params.mapChunkSize[0] = mapChunkSize;
+	Params.noiseMap = noiseMap;
+
+	Params.normals = normals;
+	Params.tangents = tangents;
+
+
+	// Create a completion event to be signaled when the Compute Shader has completed:
+	FEvent* NormalsAndTangentsCompletionEvent = FPlatformProcess::GetSynchEventFromPool(true);
+
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 7: Launching ENQUEUE_RENDER_COMMAND thread..."), *ThreadName);
+	if (!IsInRenderingThread())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("|    |	 : NOT IN RENDERING THREAD... WE GOOD!"), *ThreadName);
+		// Enqueue a render command to call MyFunction on the render thread
+		ENQUEUE_RENDER_COMMAND(MyRenderCommand)(
+			[&Params, normals, tangents, NormalsAndTangentsCompletionEvent](FRHICommandListImmediate& RHICmdList) mutable
+			{
+				FNormalsAndTangentsCSInterface::ExecuteNormalsAndTangentsCS(
+					GetImmediateCommandList_ForRenderCommand(),
+					Params,
+					normals,
+					tangents,
+					NormalsAndTangentsCompletionEvent);
+			});
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("|    |	 : IN RENDERING THREAD WHEN WE SHOULDN'T BE..."), *ThreadName);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 7.5: NormalsAndTangentsCompletionEvent->Wait() CALLED"), *ThreadName);
+	NormalsAndTangentsCompletionEvent->Wait();
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 7.6: NormalsAndTangentsCompletionEvent->Wait() COMPLETED"), *ThreadName);
+
+
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 14: ** Dispatch DONE **  | NormalsAndTangentsCS DONE"), *ThreadName);
 }
 

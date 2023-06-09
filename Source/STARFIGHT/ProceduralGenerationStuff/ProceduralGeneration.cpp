@@ -47,8 +47,9 @@ void ProceduralGeneration::GenerateNoiseMap(float*& noiseMap, const int32& mapCh
 	FRandomStream prng = FRandomStream(seed);
 	for (int32 i = 0; i < octaveCount; i++)
 	{
-		float offsetX = prng.FRandRange(-1000000, 1000000) + offset.X;
-		float offsetY = prng.FRandRange(-1000000, 1000000) + offset.Y;
+		// NOTE: Be careful how large the lower and upper bounds are set here... making the number too large causes floating point rounding issues when calculating `sampleX` and `sampleY` later on
+		float offsetX = prng.FRandRange(-10000, 10000) + offset.X;
+		float offsetY = prng.FRandRange(-10000, 10000) + offset.Y;
 		octaveOffsets[i] = FVector2f(offsetX, offsetY);
 	}
 
@@ -106,6 +107,95 @@ void ProceduralGeneration::GenerateNoiseMap(float*& noiseMap, const int32& mapCh
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 14: ** Dispatch DONE **  | NoiseMapComputeShader DONE"), *ThreadName);
 }
 
+void ProceduralGeneration::GenerateNoiseMap_OLD(float*& noiseMap, const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaveCount, float& persistance, float& lacurnarity)
+{
+	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
+	const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
+
+	UE_LOG(LogTemp, Warning, TEXT(""));
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 6: GenerateNoiseMap CALLED"), *ThreadName);
+
+
+	FVector2f* octaveOffsets = new FVector2f[octaveCount];
+
+	FRandomStream prng = FRandomStream(seed);
+	for (int32 i = 0; i < octaveCount; i++)
+	{
+		// NOTE: Be careful how large the lower and upper bounds are set here... making the number too large causes floating point issues when calculating `sampleX` and `sampleY` later on
+		float offsetX = prng.FRandRange(-10000, 10000) + offset.X;
+		float offsetY = prng.FRandRange(-10000, 10000) + offset.Y;
+		octaveOffsets[i] = FVector2f(offsetX, offsetY);
+	}
+
+
+	// MAKE HLSL:
+	float maxNoiseHeight = 0;
+	float minNoiseHeight = -5; // OLD == 1
+
+	float halfWidth = mapChunkSize / 2.0f;
+	float halfHeight = mapChunkSize / 2.0f;
+
+	UE_LOG(LogTemp, Warning, TEXT("| %s |		PRINTING RAW NOISE MAP:"), *ThreadName);
+
+	UE_LOG(LogTemp, Warning, TEXT(""));
+	UE_LOG(LogTemp, Warning, TEXT("| %s |		BASE VALUES:       halfWidth == %f     |      noiseScale == %f"), *ThreadName, halfWidth, noiseScale);
+
+	for (int i1 = 0; i1 < mapChunkSize * mapChunkSize; i1++)
+	{
+		int x = i1 % mapChunkSize;
+		int y = std::floor(i1 / mapChunkSize);
+
+		float amplitude = 1;
+		float frequency = 1;
+		float noiseHeight = 0;
+
+		float RAW_PERLIN;
+		float X;
+		float Y;
+		float octaveOffsetX;
+
+		// Apply Octaves
+		for (int i2 = 0; i2 < octaveCount; i2++)
+		{
+			float sampleX = (x - halfWidth) / noiseScale * frequency + octaveOffsets[i2].X;
+			float sampleY = (y - halfHeight) / noiseScale * frequency + octaveOffsets[i2].Y;
+			FVector2D mapSample = FVector2D(sampleX, sampleY);
+
+			float perlinValue = FMath::PerlinNoise2D(mapSample); // we multiply by '2' then subtract '1' so that our values can be negative!!
+
+			RAW_PERLIN = perlinValue;
+			X = sampleX;
+			Y = sampleY;
+			octaveOffsetX = octaveOffsets[i2].X;
+
+			perlinValue = perlinValue * 2 - 1;
+			noiseHeight += perlinValue * amplitude;
+
+			amplitude *= persistance;  // Decreases with each octave
+			frequency *= lacurnarity; // multiplied by 'lacurnarity' so the frequency increases each octave (since lacurnarity is always greater than 1)
+		}
+
+		//// BIG flaw with this code; for the inverse lerp to take full effect, we need to be doing this check after we've filled the map with it's unfiltered perlin values...
+		//if (noiseHeight > maxNoiseHeight)
+		//{
+		//	maxNoiseHeight = noiseHeight;
+		//}
+		//else if (noiseHeight < minNoiseHeight)
+		//{
+		//	minNoiseHeight = noiseHeight;
+		//}
+
+		noiseHeight = ProceduralGeneration::InverseLerp(minNoiseHeight, maxNoiseHeight, noiseHeight);
+		
+		noiseMap[i1] = noiseHeight;
+
+		if (i1 < 500)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("| %s |	  RAW PERLIN   	index: %d     |  (x,y) == (%d, %d)      |    frequency == %f    |     octaveOffsetX == %f       |         (sampleX,sampleY) == (%f, %f)      |      perlin value == %f"), *ThreadName, i1, x, y, frequency, octaveOffsetX, X, Y, RAW_PERLIN);
+		}
+	}
+}
+
 
 void ProceduralGeneration::ApplyFalloffMap(float*& noiseMap, const int32& mapChunkSize, float& a, float& b, float& c)
 {
@@ -115,6 +205,8 @@ void ProceduralGeneration::ApplyFalloffMap(float*& noiseMap, const int32& mapChu
 	UE_LOG(LogTemp, Warning, TEXT(""));
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 15: ApplyFalloffMap CALLED"), *ThreadName);
 
+	int printIncrement = FMath::DivideAndRoundUp(mapChunkSize * mapChunkSize, 50);
+	int printIndex = printIncrement;
 	for (int i = 0; i < mapChunkSize * mapChunkSize; i++)
 	{
 		int xi = i % mapChunkSize;
@@ -128,8 +220,12 @@ void ProceduralGeneration::ApplyFalloffMap(float*& noiseMap, const int32& mapChu
 		//float value = FMath::Max(FMath::Abs(x), FMath::Abs(y));
 		float value = FMath::Sqrt(FMath::Pow(x, 2) + FMath::Pow(y, 2));
 
-
 		*(noiseMap + i) = FMath::Clamp(*(noiseMap + i) - calculateFalloff(value, a, b, c), 0.0f, 1.0f);
+
+		if (i == printIndex) {
+			UE_LOG(LogTemp, Warning, TEXT("        index: %d   |   "), i);
+			printIndex += printIncrement;
+		}
 	}
 }
 
@@ -184,6 +280,7 @@ void ProceduralGeneration::ApplyErosionMap(float*& noiseMap, const int32& mapChu
 		}
 	}
 }
+
 
 /*
 *
@@ -354,6 +451,8 @@ void ProceduralGeneration::ApplyErosionMap_OLD(std::vector<float>& noiseMap, con
 
 *
 */
+
+
 
 float ProceduralGeneration::calculateWeightCurve(float vertexHeight, float exponent) {
 	float output = pow(vertexHeight, exponent);
