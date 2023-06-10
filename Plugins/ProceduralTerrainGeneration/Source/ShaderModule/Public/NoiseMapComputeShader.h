@@ -30,6 +30,8 @@ struct SHADERMODULE_API FNoiseMapComputeShaderDispatchParams
 	int32 octaveCount[1];
 	float persistance[1];
 	float lacurnarity[1];
+	float heightMultiplier[1];
+	float weightCurveExponent[1];
 	FVector2f* octaveOffsets;
 
 	float* noiseMap;

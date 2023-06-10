@@ -5,12 +5,13 @@ Buffer<float> noiseScale;
 Buffer<int> octaveCount;
 Buffer<float> persistance;
 Buffer<float> lacurnarity;
+Buffer<float> heightMultiplier;
+Buffer<float> weightCurveExponent;
 Buffer<float2> octaveOffsets;
 
 // RWStructuredBuffer<float> noiseMap : register(u0);
 // RWBuffer<float> noiseMap : register(u0);
 RWBuffer<float> noiseMap;
-
 
 
 
@@ -75,6 +76,11 @@ float Lerp(float value1, float value2, float factor)
 float InverseLerp(float minimum, float maximum, float value)
 {
 	return (value - minimum) / (maximum - minimum);
+}
+
+float calculateWeightCurve(float vertexHeight, float exponent)
+{
+	return pow(vertexHeight, exponent);
 }
 
 float PerlinNoise(float2 mapSample)
@@ -164,6 +170,8 @@ void NoiseMapComputeShader
 		// 	minNoiseHeight = noiseHeight;
 		// }
 		noiseHeight = InverseLerp(minNoiseHeight, maxNoiseHeight, noiseHeight);
+
+		noiseHeight = calculateWeightCurve(noiseHeight, weightCurveExponent[0]) * heightMultiplier[0];
 
 
 		// float original;

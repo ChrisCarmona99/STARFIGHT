@@ -22,20 +22,11 @@ float3 makeVertex(int index)
 	return Vertex;
 }
 
-float normalizeVector(float3 V)
-{
-	return sqrt(V.x * V.x + V.y * V.y + V.z * V.z);
-}
-
 float3 calculateNormal(float3 edgeA, float3 edgeB)
 {
-	float normalX = edgeA.y * edgeB.z - edgeA.z * edgeB.y;
-	float normalY = edgeA.z * edgeB.x - edgeA.x * edgeB.z;
-	float normalZ = edgeA.x * edgeB.y - edgeA.y * edgeB.x;
-
-	float3 normal = float3(normalX, normalY, normalZ);
-	float magnitude = normalizeVector(normal);
-	return normal / magnitude;
+	float3 crossProduct = cross(edgeB, edgeA);
+	float3 normal = normalize(crossProduct);
+	return normal;
 }
 
 
@@ -172,22 +163,7 @@ void NormalsAndTangentsCS
 
 		// 1: Top Left Vertex Neighbor Check:
 		if (!TopCheck && BottomCheck && RightCheck && !LeftCheck)
-		{
-			// int RightIndex = flattenedThreadID + 1; 						// Vertex1
-			// int BottomRightIndex = flattenedThreadID + mapChunkSize[0] + 1; // Vertex2
-			// int BottomIndex = flattenedThreadID + mapChunkSize[0]; 			// Vertex3
-			
-			// float3 Vertex1 = makeVertex(RightIndex);
-			// float3 Vertex2 = makeVertex(BottomRightIndex);
-			// float3 Vertex3 = makeVertex(BottomIndex);
-
-			// float3 Edge1 = Vertex1 - Vertex0;
-			// float3 Edge2 = Vertex2 - Vertex0;
-			// float3 Edge3 = Vertex3 - Vertex0;
-
-			// float3 normal1 = calculateNormal(Edge1, Edge2);
-			// float3 normal2 = calculateNormal(Edge2, Edge3);
-			
+		{	
 			float3 normal1 = Normal_1(flattenedThreadID, Vertex0);
 			float3 normal2 = Normal_2(flattenedThreadID, Vertex0);
 			
@@ -202,25 +178,6 @@ void NormalsAndTangentsCS
 		// 2: Top Vertex Neighbor Check:
 		if (!TopCheck && BottomCheck && RightCheck && LeftCheck)
 		{
-			// int RightIndex = flattenedThreadID + 1; 						// Vertex1
-			// int BottomRightIndex = flattenedThreadID + mapChunkSize[0] + 1; // Vertex2
-			// int BottomIndex = flattenedThreadID + mapChunkSize[0]; 			// Vertex3
-			// int LeftIndex = flattenedThreadID + mapChunkSize[0] + 1; // Vertex4
-			
-			// float3 Vertex1 = makeVertex(RightIndex);
-			// float3 Vertex2 = makeVertex(BottomRightIndex);
-			// float3 Vertex3 = makeVertex(BottomIndex);
-			// float3 Vertex4 = makeVertex(LeftIndex);
-
-			// float3 Edge1 = Vertex1 - Vertex0;
-			// float3 Edge2 = Vertex2 - Vertex0;
-			// float3 Edge3 = Vertex3 - Vertex0;
-			// float3 Edge4 = Vertex4 - Vertex0;
-
-			// float3 normal1 = calculateNormal(Edge1, Edge2);
-			// float3 normal2 = calculateNormal(Edge2, Edge3);
-			// float3 normal3 = calculateNormal(Edge3, Edge4);
-
 			float3 normal1 = Normal_1(flattenedThreadID, Vertex0);
 			float3 normal2 = Normal_2(flattenedThreadID, Vertex0);
 			float3 normal3 = Normal_3(flattenedThreadID, Vertex0);
@@ -236,17 +193,6 @@ void NormalsAndTangentsCS
 		// 3: Top Right Vertex Neighbor Check:
 		if (!TopCheck && BottomCheck && !RightCheck && LeftCheck)
 		{
-			// int BottomIndex = flattenedThreadID + mapChunkSize[0]; 			// Vertex3
-			// int LeftIndex = flattenedThreadID + mapChunkSize[0] + 1; // Vertex4
-			
-			// float3 Vertex3 = makeVertex(BottomIndex);
-			// float3 Vertex4 = makeVertex(LeftIndex);
-
-			// float3 Edge3 = Vertex3 - Vertex0;
-			// float3 Edge4 = Vertex4 - Vertex0;
-
-			// float3 normal3 = calculateNormal(Edge3, Edge4);
-
 			float3 normal3 = Normal_3(flattenedThreadID, Vertex0);
 			
 			float3 Normal = (normal3) / 1.0f;
@@ -260,25 +206,6 @@ void NormalsAndTangentsCS
 		// 4: Right Vertex Neighbor Check:
 		if (TopCheck && BottomCheck && !RightCheck && LeftCheck)
 		{
-			// int BottomIndex = flattenedThreadID + 1; 						// Vertex3
-			// int LeftIndex = flattenedThreadID + mapChunkSize[0] + 1; // Vertex4
-			// int TopLeftIndex = flattenedThreadID + mapChunkSize[0]; 			// Vertex5
-			// int TopIndex = flattenedThreadID - 1; 							// Vertex6
-			
-			// float3 Vertex3 = makeVertex(BottomIndex);
-			// float3 Vertex4 = makeVertex(LeftIndex);
-			// float3 Vertex5 = makeVertex(TopLeftIndex);
-			// float3 Vertex6 = makeVertex(TopIndex);
-
-			// float3 Edge3 = Vertex3 - Vertex0;
-			// float3 Edge4 = Vertex4 - Vertex0;
-			// float3 Edge5 = Vertex5 - Vertex0;
-			// float3 Edge6 = Vertex6 - Vertex0;
-
-			// float3 normal3 = calculateNormal(Edge3, Edge4);
-			// float3 normal4 = calculateNormal(Edge4, Edge5);
-			// float3 normal5 = calculateNormal(Edge5, Edge6);
-
 			float3 normal3 = Normal_3(flattenedThreadID, Vertex0);
 			float3 normal4 = Normal_4(flattenedThreadID, Vertex0);
 			float3 normal5 = Normal_5(flattenedThreadID, Vertex0);
@@ -294,22 +221,6 @@ void NormalsAndTangentsCS
 		// 5: Bottom Right Vertex Neighbor Check:
 		if (TopCheck && !BottomCheck && !RightCheck && LeftCheck)
 		{
-			// int LeftIndex = flattenedThreadID + mapChunkSize[0] + 1; // Vertex4
-			// int TopLeftIndex = flattenedThreadID + mapChunkSize[0]; 			// Vertex5
-			// int TopIndex = flattenedThreadID - 1; 							// Vertex6
-			
-			// float3 Vertex4 = makeVertex(LeftIndex);
-			// float3 Vertex5 = makeVertex(TopLeftIndex);
-			// float3 Vertex6 = makeVertex(TopIndex);
-
-			// float3 Edge4 = Vertex4 - Vertex0;
-			// float3 Edge5 = Vertex5 - Vertex0;
-			// float3 Edge6 = Vertex6 - Vertex0;
-
-			// float3 normal3 = calculateNormal(Edge3, Edge4);
-			// float3 normal4 = calculateNormal(Edge4, Edge5);
-			// float3 normal5 = calculateNormal(Edge5, Edge6);
-
 			float3 normal3 = Normal_3(flattenedThreadID, Vertex0);
 			float3 normal4 = Normal_4(flattenedThreadID, Vertex0);
 			float3 normal5 = Normal_5(flattenedThreadID, Vertex0);
@@ -325,25 +236,6 @@ void NormalsAndTangentsCS
 		// 6: Bottom Vertex Neighbor Check:
 		if (TopCheck && !BottomCheck && RightCheck && LeftCheck)
 		{
-			// int RightIndex = flattenedThreadID - mapChunkSize[0] - 1; 	// Vertex1
-			// int LeftIndex = flattenedThreadID + mapChunkSize[0] + 1; // Vertex4
-			// int TopLeftIndex = flattenedThreadID + mapChunkSize[0]; 			// Vertex5
-			// int TopIndex = flattenedThreadID - 1; 							// Vertex6
-			
-			// float3 Vertex1 = makeVertex(RightIndex);
-			// float3 Vertex4 = makeVertex(LeftIndex);
-			// float3 Vertex5 = makeVertex(TopLeftIndex);
-			// float3 Vertex6 = makeVertex(TopIndex);
-
-			// float3 Edge1 = Vertex1 - Vertex0;
-			// float3 Edge4 = Vertex4 - Vertex0;
-			// float3 Edge5 = Vertex5 - Vertex0;
-			// float3 Edge6 = Vertex6 - Vertex0;
-
-			// float3 normal4 = calculateNormal(Edge4, Edge5);
-			// float3 normal5 = calculateNormal(Edge5, Edge6);
-			// float3 normal6 = calculateNormal(Edge6, Edge1);
-
 			float3 normal4 = Normal_4(flattenedThreadID, Vertex0);
 			float3 normal5 = Normal_5(flattenedThreadID, Vertex0);
 			float3 normal6 = Normal_6(flattenedThreadID, Vertex0);
@@ -359,17 +251,6 @@ void NormalsAndTangentsCS
 		// 7: Bottom Left Vertex Neighbor Check:
 		if (TopCheck && !BottomCheck && RightCheck && !LeftCheck)
 		{
-			// int RightIndex = flattenedThreadID - mapChunkSize[0] - 1; 	// Vertex1
-			// int LeftIndex = flattenedThreadID - 1; 							// Vertex6
-			
-			// float3 Vertex1 = makeVertex(RightIndex);
-			// float3 Vertex6 = makeVertex(LeftIndex);
-
-			// float3 Edge1 = Vertex1 - Vertex0;
-			// float3 Edge6 = Vertex6 - Vertex0;
-
-			// float3 normal6 = calculateNormal(Edge6, Edge1);
-
 			float3 normal6 = Normal_6(flattenedThreadID, Vertex0);
 			
 			float3 Normal = (normal6) / 1.0f;
@@ -383,25 +264,6 @@ void NormalsAndTangentsCS
 		// 8: Left Vertex Neighbor Check:
 		if (TopCheck && BottomCheck && RightCheck && !LeftCheck)
 		{
-			// int RightIndex = flattenedThreadID + 1; 						// Vertex1
-			// int BottomRightIndex = flattenedThreadID + mapChunkSize[0] + 1; // Vertex2
-			// int BottomIndex = flattenedThreadID + mapChunkSize[0]; 			// Vertex3
-			// int LeftIndex = flattenedThreadID - 1; 							// Vertex6
-			
-			// float3 Vertex1 = makeVertex(RightIndex);
-			// float3 Vertex2 = makeVertex(BottomRightIndex);
-			// float3 Vertex3 = makeVertex(BottomIndex);
-			// float3 Vertex6 = makeVertex(LeftIndex);
-
-			// float3 Edge1 = Vertex1 - Vertex0;
-			// float3 Edge2 = Vertex2 - Vertex0;
-			// float3 Edge3 = Vertex3 - Vertex0;
-			// float3 Edge6 = Vertex6 - Vertex0;
-
-			// float3 normal1 = calculateNormal(Edge1, Edge2);
-			// float3 normal2 = calculateNormal(Edge2, Edge3);
-			// float3 normal6 = calculateNormal(Edge6, Edge1);
-
 			float3 normal1 = Normal_1(flattenedThreadID, Vertex0);
 			float3 normal2 = Normal_2(flattenedThreadID, Vertex0);
 			float3 normal6 = Normal_6(flattenedThreadID, Vertex0);
@@ -417,34 +279,6 @@ void NormalsAndTangentsCS
 		// 9: Inner Vertex Neighbor Check:
 		if (TopCheck && BottomCheck && RightCheck && LeftCheck)
 		{
-			// int RightIndex = flattenedThreadID + 1; 							// Vertex1
-			// int BottomRightIndex = flattenedThreadID + mapChunkSize[0] + 1;  	// Vertex2
-			// int BottomIndex = flattenedThreadID + mapChunkSize[0]; 				// Vertex3
-			// int LeftIndex = flattenedThreadID - 1; 								// Vertex4
-			// int TopLeftIndex = flattenedThreadID - mapChunkSize[0] - 1; 		// Vertex5
-			// int TopIndex = flattenedThreadID - mapChunkSize[0]; 				// Vertex6
-
-			// float3 Vertex1 = makeVertex(RightIndex);
-			// float3 Vertex2 = makeVertex(BottomRightIndex);
-			// float3 Vertex3 = makeVertex(BottomIndex);
-			// float3 Vertex4 = makeVertex(LeftIndex);
-			// float3 Vertex5 = makeVertex(TopLeftIndex);
-			// float3 Vertex6 = makeVertex(TopIndex);
-
-			// float3 Edge1 = Vertex1 - Vertex0;
-			// float3 Edge2 = Vertex2 - Vertex0;
-			// float3 Edge3 = Vertex3 - Vertex0;
-			// float3 Edge4 = Vertex4 - Vertex0;
-			// float3 Edge5 = Vertex5 - Vertex0;
-			// float3 Edge6 = Vertex6 - Vertex0;
-
-			// float3 normal1 = calculateNormal(Edge1, Edge2);
-			// float3 normal2 = calculateNormal(Edge2, Edge3);
-			// float3 normal3 = calculateNormal(Edge3, Edge4);
-			// float3 normal4 = calculateNormal(Edge4, Edge5);
-			// float3 normal5 = calculateNormal(Edge5, Edge6);
-			// float3 normal6 = calculateNormal(Edge6, Edge1);
-
 			float3 normal1 = Normal_1(flattenedThreadID, Vertex0);
 			float3 normal2 = Normal_2(flattenedThreadID, Vertex0);
 			float3 normal3 = Normal_3(flattenedThreadID, Vertex0);
@@ -458,20 +292,7 @@ void NormalsAndTangentsCS
 			normals[threadIndex] = FinalNormal.x;
 			normals[threadIndex + 1] = FinalNormal.y;
 			normals[threadIndex + 2] = FinalNormal.z;
-
-
 		}
-		
-
-		
-		// int RightIndex = flattenedThreadID + 1; 							// Vertex1
-		// int BottomRightIndex = flattenedThreadID + mapChunkSize[0] + 1;  // Vertex2
-		// int BottomIndex = flattenedThreadID + mapChunkSize[0]; 			// Vertex3
-		// int LeftIndex = flattenedThreadID - 1; 							// Vertex4
-		// int TopLeftIndex = flattenedThreadID - mapChunkSize[0] - 1; 		// Vertex5
-		// int TopIndex = flattenedThreadID - mapChunkSize[0]; 				// Vertex6
-		
-	
 
 		tangents[threadIndex] = 3.9f;
 		tangents[threadIndex + 1] = 2.8f;

@@ -42,6 +42,8 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, octaveCount)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, persistance)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, lacurnarity)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, heightMultiplier)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, weightCurveExponent)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<FVector2f>, octaveOffsets) // On the shader side: float3 MyVector;
 
 		//SHADER_PARAMETER_UAV(RW_STRUCTURED_BUFFER<float>, someParam)
@@ -200,6 +202,24 @@ void FNoiseMapComputeShaderInterface::ExecuteNoiseMapComputeShader(
 
 			FRDGBufferRef lacurnarityBuffer = CreateUploadBuffer(GraphBuilder, TEXT("lacurnarityBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize);
 			PassParameters->lacurnarity = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(lacurnarityBuffer, PF_R32_SINT));
+
+			// heightMultiplier:
+			BytesPerElement = sizeof(float);
+			NumElements = 1;
+			InitialData = (void*)Params.heightMultiplier;
+			InitialDataSize = BytesPerElement * NumElements;
+
+			FRDGBufferRef heightMultiplierBuffer = CreateUploadBuffer(GraphBuilder, TEXT("heightMultiplierBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize);
+			PassParameters->heightMultiplier = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(heightMultiplierBuffer, PF_R32_SINT));
+
+			// weightCurveExponent:
+			BytesPerElement = sizeof(float);
+			NumElements = 1;
+			InitialData = (void*)Params.weightCurveExponent;
+			InitialDataSize = BytesPerElement * NumElements;
+
+			FRDGBufferRef weightCurveExponentBuffer = CreateUploadBuffer(GraphBuilder, TEXT("weightCurveExponentBuffer"), BytesPerElement, NumElements, InitialData, InitialDataSize);
+			PassParameters->weightCurveExponent = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(weightCurveExponentBuffer, PF_R32_SINT));
 
 			// octaveOffsets:
 			BytesPerElement = sizeof(FVector2f);

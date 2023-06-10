@@ -295,7 +295,7 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 
 
 	// Generate the Perline Noise values:
-	ProceduralGeneration::GenerateNoiseMap(NoiseMap, Inputs.mapChunkSize, Inputs.seed, Inputs.offset, Inputs.noiseScale, Inputs.octaves, Inputs.persistence, Inputs.lacunarity);
+	ProceduralGeneration::GenerateNoiseMap(NoiseMap, Inputs.mapChunkSize, Inputs.seed, Inputs.offset, Inputs.noiseScale, Inputs.octaves, Inputs.persistence, Inputs.lacunarity, Inputs.heightMultiplier, Inputs.weightCurveExponent);
 
 
 	// Apply the Falloff map:
@@ -318,11 +318,15 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 	// Generate Normals and Tangets:
 	float* Normals = new float[Inputs.mapChunkSize * Inputs.mapChunkSize * 3];
 	float* Tangents = new float[Inputs.mapChunkSize * Inputs.mapChunkSize * 3];
+
+	float* debug1 = new float[Inputs.mapChunkSize * Inputs.mapChunkSize * 2];
 	AProceduralTerrain::AddNormalsAndTangents(Normals, Tangents, NoiseMap, Inputs.mapChunkSize);
 	for (int index = 0; index < 500; index++)
 	{	
-		UE_LOG(LogTemp, Warning, TEXT("        index: %d   |   normal == (%f, %f, %f)    |    tangent == (%f, %f, %f)"), 
-								      index, Normals[index*3], Normals[index * 3 + 1], Normals[index * 3 + 2], Tangents[index * 3], Tangents[index * 3 + 1], Tangents[index * 3 + 2]);
+		int y = index % Inputs.mapChunkSize; // inner vector, traverses the y-axis (left to right)
+		int x = std::floor(index / Inputs.mapChunkSize); // outer vector, traveres the x-axis (top to bottom)
+		UE_LOG(LogTemp, Warning, TEXT("        index: %d   |   vertex == (%f, %f, %f)    |    normal == <%f, %f, %f>    |    tangent == <%f, %f, %f>"), 
+								      index, (float)x, (float)y, NoiseMap[index], Normals[index * 3], Normals[index * 3 + 1], Normals[index * 3 + 2], Tangents[index * 3], Tangents[index * 3 + 1], Tangents[index * 3 + 2]);
 	}
 
 
@@ -344,10 +348,10 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 		int x = std::floor(i / Inputs.mapChunkSize); // outer vector, traveres the x-axis (top to bottom)
 
 		// Define the height for the current vertex in our iteration
-		float currentHeight = ProceduralGeneration::calculateWeightCurve(NoiseMap[i], Inputs.weightCurveExponent) * Inputs.heightMultiplier;
+		//float currentHeight = ProceduralGeneration::calculateWeightCurve(NoiseMap[i], Inputs.weightCurveExponent) * Inputs.heightMultiplier; // WARNING: This probably needs to be applied before we calculate the normals & tangents...
 
 		// Add Vertices, UVs, VertexColors, and Triangles:
-		MeshData->vertices.Add(FVector(topMostX - x, leftMostY + y, currentHeight));
+		MeshData->vertices.Add(FVector(topMostX - x, leftMostY + y, NoiseMap[i]));
 		MeshData->uvs.Add(FVector2D(x, y));
 		MeshData->vertexColors.Add(FLinearColor(0.75, 0.75, 0.75, 1.0));
 
@@ -365,7 +369,7 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 		}
 
 		if (i < 500) {
-			UE_LOG(LogTemp, Warning, TEXT("        index: %d   |   (X, Y)  |  (topMostX - x, leftMostY + y, Z)     :     (%d, %d)  |  (%f, %f, %f)"), i, x, y, topMostX - x, leftMostY + y, currentHeight);
+			UE_LOG(LogTemp, Warning, TEXT("        index: %d    |    raw vertex == (%f, %f, %f)    |    centered vertex == (%f, %f, %f)"), i, (float)x, (float)y, NoiseMap[i], (float)(topMostX - x), (float)(leftMostY + y), NoiseMap[i]);
 		}
 	}
 

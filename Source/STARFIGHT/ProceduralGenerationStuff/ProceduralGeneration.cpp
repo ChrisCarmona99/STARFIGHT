@@ -33,7 +33,7 @@ struct vector3D
 	int32 Z;
 };
 
-void ProceduralGeneration::GenerateNoiseMap(float*& noiseMap, const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaveCount, float& persistance, float& lacurnarity)
+void ProceduralGeneration::GenerateNoiseMap(float*& noiseMap, const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaveCount, float& persistance, float& lacurnarity, float& heightMultiplier, float& weightCurveExponent)
 {
 	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 	const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
@@ -67,6 +67,8 @@ void ProceduralGeneration::GenerateNoiseMap(float*& noiseMap, const int32& mapCh
 	Params.octaveCount[0] = octaveCount;
 	Params.persistance[0] = persistance;
 	Params.lacurnarity[0] = lacurnarity;
+	Params.heightMultiplier[0] = heightMultiplier;
+	Params.weightCurveExponent[0] = weightCurveExponent;
 	Params.octaveOffsets = octaveOffsets;
 
 	Params.noiseMap = noiseMap;

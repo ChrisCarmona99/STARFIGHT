@@ -17,7 +17,7 @@ public:
 	ProceduralGeneration();
 	~ProceduralGeneration();
 
-	static void GenerateNoiseMap(float*& noiseMap, const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaves, float& persistance, float& lacurnarity);
+	static void GenerateNoiseMap(float*& noiseMap, const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaves, float& persistance, float& lacurnarity, float& heightMultiplier, float& weightCurveExponent);
 	static void GenerateNoiseMap_OLD(float*& noiseMap, const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaveCount, float& persistance, float& lacurnarity);
 	static void ApplyFalloffMap(float*& noiseMap, const int32& mapChunkSize, float& a, float& b, float& c);
 	static void ApplyErosionMap(float*& noiseMap, const int32& mapChunkSize, const int32& seed, int32& dropletLifetime, const int32& numIterations);
