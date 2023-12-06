@@ -178,7 +178,7 @@ void NoiseMapComputeShader
 		// InterlockedExchange(noiseMap[THREAD_INDEX], (float)THREAD_INDEX, original);
 
 		noiseMap[flattenedThreadID] = noiseHeight;
-	}
+	} // End range check
 }
 
 

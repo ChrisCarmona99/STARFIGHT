@@ -94,108 +94,19 @@ void ProceduralGeneration::GenerateNoiseMap(float*& noiseMap, const int32& mapCh
 					ComputeShaderMutex,
 					NoiseMapCompletionEvent);
 			});
+
+		UE_LOG(LogTemp, Warning, TEXT("| %s | 7.5: NoiseMapCompletionEvent->Wait() CALLED"), *ThreadName);
+		NoiseMapCompletionEvent->Wait();
+		UE_LOG(LogTemp, Warning, TEXT("| %s | 7.6: NoiseMapCompletionEvent->Wait() COMPLETED"), *ThreadName);
+		FGenericPlatformProcess::FlushPoolSyncEvents();
 	}
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("|    |	 : IN RENDERING THREAD WHEN WE SHOULDN'T BE..."), *ThreadName);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("| %s | 7.5: NoiseMapCompletionEvent->Wait() CALLED"), *ThreadName);
-	NoiseMapCompletionEvent->Wait();
-	UE_LOG(LogTemp, Warning, TEXT("| %s | 7.6: NoiseMapCompletionEvent->Wait() COMPLETED"), *ThreadName);
-
-
 	delete[] octaveOffsets;
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 14: ** Dispatch DONE **  | NoiseMapComputeShader DONE"), *ThreadName);
-}
-
-void ProceduralGeneration::GenerateNoiseMap_OLD(float*& noiseMap, const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaveCount, float& persistance, float& lacurnarity)
-{
-	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
-	const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
-
-	UE_LOG(LogTemp, Warning, TEXT(""));
-	UE_LOG(LogTemp, Warning, TEXT("| %s | 6: GenerateNoiseMap CALLED"), *ThreadName);
-
-
-	FVector2f* octaveOffsets = new FVector2f[octaveCount];
-
-	FRandomStream prng = FRandomStream(seed);
-	for (int32 i = 0; i < octaveCount; i++)
-	{
-		// NOTE: Be careful how large the lower and upper bounds are set here... making the number too large causes floating point issues when calculating `sampleX` and `sampleY` later on
-		float offsetX = prng.FRandRange(-10000, 10000) + offset.X;
-		float offsetY = prng.FRandRange(-10000, 10000) + offset.Y;
-		octaveOffsets[i] = FVector2f(offsetX, offsetY);
-	}
-
-
-	// MAKE HLSL:
-	float maxNoiseHeight = 0;
-	float minNoiseHeight = -5; // OLD == 1
-
-	float halfWidth = mapChunkSize / 2.0f;
-	float halfHeight = mapChunkSize / 2.0f;
-
-	UE_LOG(LogTemp, Warning, TEXT("| %s |		PRINTING RAW NOISE MAP:"), *ThreadName);
-
-	UE_LOG(LogTemp, Warning, TEXT(""));
-	UE_LOG(LogTemp, Warning, TEXT("| %s |		BASE VALUES:       halfWidth == %f     |      noiseScale == %f"), *ThreadName, halfWidth, noiseScale);
-
-	for (int i1 = 0; i1 < mapChunkSize * mapChunkSize; i1++)
-	{
-		int x = i1 % mapChunkSize;
-		int y = std::floor(i1 / mapChunkSize);
-
-		float amplitude = 1;
-		float frequency = 1;
-		float noiseHeight = 0;
-
-		float RAW_PERLIN;
-		float X;
-		float Y;
-		float octaveOffsetX;
-
-		// Apply Octaves
-		for (int i2 = 0; i2 < octaveCount; i2++)
-		{
-			float sampleX = (x - halfWidth) / noiseScale * frequency + octaveOffsets[i2].X;
-			float sampleY = (y - halfHeight) / noiseScale * frequency + octaveOffsets[i2].Y;
-			FVector2D mapSample = FVector2D(sampleX, sampleY);
-
-			float perlinValue = FMath::PerlinNoise2D(mapSample); // we multiply by '2' then subtract '1' so that our values can be negative!!
-
-			RAW_PERLIN = perlinValue;
-			X = sampleX;
-			Y = sampleY;
-			octaveOffsetX = octaveOffsets[i2].X;
-
-			perlinValue = perlinValue * 2 - 1;
-			noiseHeight += perlinValue * amplitude;
-
-			amplitude *= persistance;  // Decreases with each octave
-			frequency *= lacurnarity; // multiplied by 'lacurnarity' so the frequency increases each octave (since lacurnarity is always greater than 1)
-		}
-
-		//// BIG flaw with this code; for the inverse lerp to take full effect, we need to be doing this check after we've filled the map with it's unfiltered perlin values...
-		//if (noiseHeight > maxNoiseHeight)
-		//{
-		//	maxNoiseHeight = noiseHeight;
-		//}
-		//else if (noiseHeight < minNoiseHeight)
-		//{
-		//	minNoiseHeight = noiseHeight;
-		//}
-
-		noiseHeight = ProceduralGeneration::InverseLerp(minNoiseHeight, maxNoiseHeight, noiseHeight);
-		
-		noiseMap[i1] = noiseHeight;
-
-		if (i1 < 500)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("| %s |	  RAW PERLIN   	index: %d     |  (x,y) == (%d, %d)      |    frequency == %f    |     octaveOffsetX == %f       |         (sampleX,sampleY) == (%f, %f)      |      perlin value == %f"), *ThreadName, i1, x, y, frequency, octaveOffsetX, X, Y, RAW_PERLIN);
-		}
-	}
 }
 
 
@@ -232,7 +143,10 @@ void ProceduralGeneration::ApplyFalloffMap(float*& noiseMap, const int32& mapChu
 }
 
 
-void ProceduralGeneration::ApplyErosionMap(float*& noiseMap, const int32& mapChunkSize, const int32& seed, int32& dropletLifetime, const int32& numIterations)
+void ProceduralGeneration::ApplyErosionMap(
+	float*& noiseMap, const int32& seed, const int32& mapChunkSizeWithBorder, const int32& mapChunkSize, const int32& numErosionIterations, int32& erosionBrushRadius, int32& maxDropletLifetime, 
+	float& sedimentCapacityFactor, float& minSedimentCapacity, float& depositSpeed, float& erodeSpeed, float& evaporateSpeed, float& gravity, 
+	float& startSpeed, float& startWater, float& inertia)
 {
 	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 	const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
@@ -240,231 +154,140 @@ void ProceduralGeneration::ApplyErosionMap(float*& noiseMap, const int32& mapChu
 	UE_LOG(LogTemp, Warning, TEXT(""));
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 16: ApplyErosionMap CALLED"), *ThreadName);
 
+
+	float* _DEBUG_1 = new float[numErosionIterations];
+
+
+	// Create brush:
+	std::vector<int> brushIndexOffsets;
+	std::vector<float> brushWeights;
+
+	float weightSum = 0;
+	for (int brushY = -erosionBrushRadius; brushY <= erosionBrushRadius; brushY++) {
+		for (int brushX = -erosionBrushRadius; brushX <= erosionBrushRadius; brushX++) {
+			float sqrDst = brushX * brushX + brushY * brushY;
+			if (sqrDst < erosionBrushRadius * erosionBrushRadius) {
+				brushIndexOffsets.emplace_back(brushY * mapChunkSize + brushX);
+				float brushWeight = 1 - std::sqrt(sqrDst) / erosionBrushRadius;
+				weightSum += brushWeight;
+				brushWeights.emplace_back(brushWeight);
+			}
+		}
+	}
+	for (int i = 0; i < brushWeights.size(); i++) {
+		brushWeights[i] /= weightSum;
+	}
+
+	// Generate random indices for droplet placement:
+	int* randomIndices = new int[numErosionIterations];
 	FRandomStream prng = FRandomStream(seed);
+	for (int i = 0; i < numErosionIterations; i++) {
+		int randomX = prng.FRandRange(erosionBrushRadius, mapChunkSize + erosionBrushRadius);
+		int randomY = prng.FRandRange(erosionBrushRadius, mapChunkSize + erosionBrushRadius);
+		randomIndices[i] = randomY * mapChunkSize + randomX;
+	}
 
-	for (int iteration = 0; iteration < numIterations; iteration++)
+	const int BrushIndexOffsetsSize = brushIndexOffsets.size();
+	const int BrushWeightsSize = brushWeights.size();
+
+	int* BrushIndexOffsets = new int[BrushIndexOffsetsSize];
+	std::memcpy(BrushIndexOffsets, brushIndexOffsets.data(), BrushIndexOffsetsSize * sizeof(int));
+	float* BrushWeights = new float[BrushWeightsSize];
+	std::memcpy(BrushWeights, brushWeights.data(), BrushWeightsSize * sizeof(float));
+
+
+	// Define our Compute Shader's input parameters:
+	int THREADS_X = 1024;
+	int THREADS_Y = 1;
+	int THREADS_Z = 1;
+	int THREAD_GROUPS_X = FMath::DivideAndRoundUp(numErosionIterations, THREADS_X);
+
+	FErosionMapCSDispatchParams Params(THREADS_X, THREADS_Y, THREADS_Z);
+	Params.THREAD_GROUPS_X = THREAD_GROUPS_X;
+
+	Params._RandomIndices = randomIndices;
+	Params._BrushIndices = BrushIndexOffsets;
+	Params._BrushWeights = BrushWeights;
+
+	Params._MapChunkSize[0] = mapChunkSizeWithBorder;  // NOTE: NOT the original mapChunkSize... mapChunksize + (erosionBrushRadius * 2)
+	Params._BrushLength[0] = brushIndexOffsets.size();
+	Params._BorderSize[0] = erosionBrushRadius;
+	
+	Params._MaxDropletLifetime[0] = maxDropletLifetime;
+	Params._SedimentCapacityFactor[0] = sedimentCapacityFactor;
+	Params._MinSedimentCapacity[0] = minSedimentCapacity;
+	Params._DepositSpeed[0] = depositSpeed;
+	Params._ErodeSpeed[0] = erodeSpeed;
+
+	Params._EvaporateSpeed[0] = evaporateSpeed;
+	Params._Gravity[0] = gravity;
+	Params._StartSpeed[0] = startSpeed;
+	Params._StartWater[0] = startWater;
+	Params._Inertia[0] = inertia;
+
+	Params._NumErosionIterations[0] = numErosionIterations;
+
+	Params._NoiseMap = noiseMap;
+
+	Params._DEBUG_1 = _DEBUG_1;
+
+	// Create a completion event to be signaled when the Compute Shader has completed:
+	FEvent* ErosionMapCompletionEvent = FPlatformProcess::GetSynchEventFromPool(false);
+
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 7: Launching ENQUEUE_RENDER_COMMAND thread..."), *ThreadName);
+	if (!IsInRenderingThread())
 	{
-		// Create Water Droplet at a random point on the map:
-		float x = prng.FRandRange(0, mapChunkSize - 1);
-		float y = prng.FRandRange(0, mapChunkSize - 1);
-		//TArray<FArray2D> direction; // two dimensional normalized float vector 
-		float velocity = 0;
-		float water = 0;
-		float sediment = 0;
+		UE_LOG(LogTemp, Warning, TEXT("|    |	 : NOT IN RENDERING THREAD... WE GOOD!"), *ThreadName);
+		// Enqueue a render command to call MyFunction on the render thread
+		ENQUEUE_RENDER_COMMAND(MyRenderCommand)(
+			[&Params, noiseMap, _DEBUG_1, BrushIndexOffsetsSize, BrushWeightsSize, ErosionMapCompletionEvent](FRHICommandListImmediate& RHICmdList) mutable
+			{
+				FErosionMapCSInterface::ExecuteErosionMapCS(
+					GetImmediateCommandList_ForRenderCommand(),
+					Params,
+					BrushIndexOffsetsSize,
+					BrushWeightsSize,
+					noiseMap,
+					_DEBUG_1,
+					ErosionMapCompletionEvent);
+			});
 
-		for (int lifetime = 0; lifetime < dropletLifetime; lifetime++)
-		{
-			// Convert the generated 'x' and 'y' coordinates to the corresponding index
-			//int x = i % mapChunkSize;
-			//int y = std::floor(i / mapChunkSize);
-
-			// Calculate droplet's height and the direction of the flow with bilinear interpolation of surrounding heights
-			//float height = GeneratedMap[y].secondArray[x];
-
-
-
-			// Update the droplet's position (move 1 unit regardless of speed so as not to skip over sections fo the map)
-
-			// Find the droplet's new height and calculate the 'deltaHeight'
-
-			// Calculate the droplet's sediment capacity (higher when moving fast down a slop and contains lots of water)
-
-			// - If carrying more sediment than capacity, or if flowing up a slope:
-			// deposite a fraction of the sediment to the surrounding nodes (with bilinear interpolation)
-
-			// - Otherwise:
-			// Erode a fraction of the droplet's remaining capacity from teh soil, distributed over the radius of the droplets
-			// NOTE: don't erode more than deltaHeight to avoid digging holes behind the droplet and creating spikes
-
-			// Update droplet's speed based on deltaHeight
-			// Evaporate a fraction of the droplet's water
-
-		}
+		UE_LOG(LogTemp, Warning, TEXT("| %s | 7.5: ErosionMapCompletionEvent->Wait() CALLED"), *ThreadName);
+		ErosionMapCompletionEvent->Wait();
+		UE_LOG(LogTemp, Warning, TEXT("| %s | 7.6: ErosionMapCompletionEvent->Wait() COMPLETED"), *ThreadName);
+		FGenericPlatformProcess::FlushPoolSyncEvents();
 	}
-}
-
-
-/*
-*
-
-void ProceduralGeneration::GenerateNoiseMap_OLD(std::vector<float>& noiseMap, const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaveCount, float& persistance, float& lacurnarity)
-{
-	UE_LOG(LogTemp, Warning, TEXT("GenerateNoiseMap CALLED"));
-
-
-	std::vector<vector2D> octaveOffsets_OLD;
-	std::shared_ptr<FVector2f[]> octaveOffsets(new FVector2f[octaveCount]);
-	FVector2f* octaveOffsets_ptr = octaveOffsets.get();
-
-	FRandomStream prng = FRandomStream(seed);
-	for (int32 i = 0; i < octaveCount; i++)
+	else
 	{
-		float offsetX = prng.FRandRange(-1000000, 1000000) + offset.X;
-		float offsetY = prng.FRandRange(-1000000, 1000000) + offset.Y;
-		octaveOffsets_OLD.push_back(vector2D(offsetX, offsetY));
-		octaveOffsets_ptr[i] = FVector2f(offsetX, offsetY);
+		UE_LOG(LogTemp, Warning, TEXT("|    |	 : IN RENDERING THREAD WHEN WE SHOULDN'T BE..."), *ThreadName);
 	}
 
-	if (noiseScale <= 0) {
-		noiseScale = 0.0001f;
-	}
-
-
-
-	int THREADS_X = 1024; // This is hardcoded for now, but just the number of threads set in the compute shader in the x dimension
-	int THREAD_GROUPS_X = FMath::DivideAndRoundUp(mapChunkSize * mapChunkSize, THREADS_X);
-
-	FNoiseMapComputeShaderDispatchParams Params(THREAD_GROUPS_X, 1, 1);
-	Params.mapChunkSize[0] = mapChunkSize;
-	Params.noiseScale[0] = noiseScale;
-	Params.octaveCount[0] = octaveCount;
-	Params.persistance[0] = persistance;
-	Params.lacurnarity[0] = lacurnarity;
-	Params.octaveOffsets = octaveOffsets;
-
-	std::shared_ptr<float[]> _noiseMap(new float[mapChunkSize * mapChunkSize]);
-	//std::shared_ptr<float[]> _noiseMap;
-	Params.noiseMap = _noiseMap;
-
-	std::shared_ptr<float[]> outputMap;
-	//FNoiseMapComputeShaderInterface::Dispatch(Params, [_noiseMap, outputMap](std::shared_ptr<float[]> OUTPUT) mutable {  // NOTE: Making the input mutable could fuck things up... double check this
-	//	//_noiseMap = OUTPUT;
-	//	//std::shared_ptr<float[]> TEST(new float[10]);
-	//	//_noiseMap = TEST;
-	//	outputMap = OUTPUT;
-	//	});
-
-	//std::this_thread::sleep_for(std::chrono::seconds(1));
-
-
-
-	// MAKE HLSL:
-	float maxNoiseHeight = 0;
-	float minNoiseHeight = 1;
-
-	float halfWidth = mapChunkSize / 2.0f;
-	float halfHeight = mapChunkSize / 2.0f;
-
-	for (int i1 = 0; i1 < mapChunkSize * mapChunkSize; i1++)
+	int upperLimit = numErosionIterations < 500 ? numErosionIterations : 500;
+	for (int index = 0; index < upperLimit; index++)
 	{
-		int x = i1 % mapChunkSize;
-		int y = std::floor(i1 / mapChunkSize);
-
-		float amplitude = 1;
-		float frequency = 1;
-		float noiseHeight = 0;
-
-		// Apply Octaves
-		for (int i2 = 0; i2 < octaveCount; i2++)
-		{
-			float sampleX = (x - halfWidth) / noiseScale * frequency + octaveOffsets_OLD[i2].X;
-			float sampleY = (y - halfHeight) / noiseScale * frequency + octaveOffsets_OLD[i2].Y;
-
-			float perlinValue = FMath::PerlinNoise2D(FVector2D(sampleX, sampleY)) * 2 - 1; // we multiply by '2' then subtract '1' so that our values can be negative!!
-			noiseHeight += perlinValue * amplitude;
-
-			amplitude *= persistance;  // Decreases with each octave
-			frequency *= lacurnarity; // multiplied by 'lacurnarity' so the frequency increases each octave (since lacurnarity is always greater than 1)
-		}
-
-		// BIG flaw with this code; for the inverse lerp to take full effect, we need to be doing this check after we've filled the map with it's unfiltered perlin values...
-		if (noiseHeight > maxNoiseHeight)
-		{
-			maxNoiseHeight = noiseHeight;
-		}
-		else if (noiseHeight < minNoiseHeight)
-		{
-			minNoiseHeight = noiseHeight;
-		}
-
-		noiseMap.push_back(noiseHeight);
-
-		// Normalize all of our height values between the high and low height values encountered
-		noiseMap[i1] = InverseLerp(minNoiseHeight, maxNoiseHeight, noiseMap[i1]);
-		//UE_LOG(LogTemp, Warning, TEXT("		noiseMap[%d] == %d"), i1, noiseMap[i1]);
+		UE_LOG(LogTemp, Warning, TEXT("| %s | #:#		DEBUG[%d] == %f   |   (x,y) == (%d,%d)"), *ThreadName, index, _DEBUG_1[index], (int32) _DEBUG_1[index] % mapChunkSize, (int32) _DEBUG_1[index] / mapChunkSize)
 	}
-	int _T_ = 1;
+
+	delete[] randomIndices;
+	delete[] BrushIndexOffsets;
+	delete[] BrushWeights;
+
+	UE_LOG(LogTemp, Warning, TEXT("| %s | 14: ** Dispatch DONE **  | NormalsAndTangentsCS DONE"), *ThreadName);
 }
 
-void ProceduralGeneration::ApplyFalloffMap_OLD(std::vector<float>& noiseMap, const int32& mapChunkSize, float& a, float& b, float& c)
-{
-
-	for (int i = 0; i < mapChunkSize * mapChunkSize; i++)
-	{
-		int xi = i % mapChunkSize;
-		int yi = std::floor(i / mapChunkSize);
-
-		// NOTE: revisit... don't understand:
-		float x = xi / (float)mapChunkSize * 2 - 1;
-		float y = yi / (float)mapChunkSize * 2 - 1;
-
-		// Chooses the greatest coordinate (x OR y) which will denote which one is closer to the center of the terrain grid:
-		//float value = FMath::Max(FMath::Abs(x), FMath::Abs(y));
-		float value = FMath::Sqrt(FMath::Pow(x, 2) + FMath::Pow(y, 2));
-
-		noiseMap[i] = FMath::Clamp(noiseMap[i] - calculateFalloff(value, a, b, c), 0.0f, 1.0f);
-	}
-}
-
-void ProceduralGeneration::ApplyErosionMap_OLD(std::vector<float>& noiseMap, const int32& mapChunkSize, const int32& seed, int32& dropletLifetime, const int32& numIterations)
-{
-	FRandomStream prng = FRandomStream(seed);
-
-	for (int iteration = 0; iteration < numIterations; iteration++)
-	{
-		// Create Water Droplet at a random point on the map:
-		float x = prng.FRandRange(0, mapChunkSize - 1);
-		float y = prng.FRandRange(0, mapChunkSize - 1);
-		//TArray<FArray2D> direction; // two dimensional normalized float vector 
-		float velocity = 0;
-		float water = 0;
-		float sediment = 0;
-
-		for (int lifetime = 0; lifetime < dropletLifetime; lifetime++)
-		{
-			// Convert the generated 'x' and 'y' coordinates to the corresponding index
-			//int x = i % mapChunkSize;
-			//int y = std::floor(i / mapChunkSize);
-
-			// Calculate droplet's height and the direction of the flow with bilinear interpolation of surrounding heights
-			//float height = GeneratedMap[y].secondArray[x];
 
 
 
-			// Update the droplet's position (move 1 unit regardless of speed so as not to skip over sections fo the map)
 
-			// Find the droplet's new height and calculate the 'deltaHeight'
-
-			// Calculate the droplet's sediment capacity (higher when moving fast down a slop and contains lots of water)
-
-			// - If carrying more sediment than capacity, or if flowing up a slope:
-			// deposite a fraction of the sediment to the surrounding nodes (with bilinear interpolation)
-
-			// - Otherwise:
-			// Erode a fraction of the droplet's remaining capacity from teh soil, distributed over the radius of the droplets
-			// NOTE: don't erode more than deltaHeight to avoid digging holes behind the droplet and creating spikes
-
-			// Update droplet's speed based on deltaHeight
-			// Evaporate a fraction of the droplet's water
-
-		}
-	}
-}
-
-*
-*/
-
-
-
-float ProceduralGeneration::calculateWeightCurve(float vertexHeight, float exponent) {
-	float output = pow(vertexHeight, exponent);
-	return output;
-}
-
-float ProceduralGeneration::InverseLerp(float min, float max, float value) {
-	float output = (value - min) / (max - min);
-	return output;
-}
+//float ProceduralGeneration::calculateWeightCurve(float vertexHeight, float exponent) {
+//	float output = pow(vertexHeight, exponent);
+//	return output;
+//}
+//
+//float ProceduralGeneration::InverseLerp(float min, float max, float value) {
+//	float output = (value - min) / (max - min);
+//	return output;
+//}
 
 float ProceduralGeneration::calculateFalloff(float value, float a, float b, float c) {
 	float output = (FMath::Pow(value, a) / (c * FMath::Pow(value, a) + FMath::Pow((b - b * value), a)));

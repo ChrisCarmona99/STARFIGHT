@@ -7,11 +7,6 @@ Buffer<float> noiseMap;
 RWBuffer<float> normals;
 RWBuffer<float> tangents;
 
-// HLSL specific buffers:
-RWBuffer<float3> vertexNeighbors;
-
-
-
 
 
 float3 makeVertex(int index)
@@ -167,8 +162,8 @@ void NormalsAndTangentsCS
 			float3 normal1 = Normal_1(flattenedThreadID, Vertex0);
 			float3 normal2 = Normal_2(flattenedThreadID, Vertex0);
 			
-			float3 Normal = (normal1 + normal2) / 2.0f;
-			float3 FinalNormal = Normal / normalizeVector(Normal);
+			float3 SumNormal = (normal1 + normal2);
+			float3 FinalNormal = SumNormal / length(SumNormal);
 
 			normals[threadIndex] = FinalNormal.x;
 			normals[threadIndex + 1] = FinalNormal.y;
@@ -182,8 +177,8 @@ void NormalsAndTangentsCS
 			float3 normal2 = Normal_2(flattenedThreadID, Vertex0);
 			float3 normal3 = Normal_3(flattenedThreadID, Vertex0);
 			
-			float3 Normal = (normal1 + normal2+ normal3) / 3.0f;
-			float3 FinalNormal = Normal / normalizeVector(Normal);
+			float3 SumNormal = (normal1 + normal2 + normal3);
+			float3 FinalNormal = SumNormal / length(SumNormal);
 
 			normals[threadIndex] = FinalNormal.x;
 			normals[threadIndex + 1] = FinalNormal.y;
@@ -195,8 +190,8 @@ void NormalsAndTangentsCS
 		{
 			float3 normal3 = Normal_3(flattenedThreadID, Vertex0);
 			
-			float3 Normal = (normal3) / 1.0f;
-			float3 FinalNormal = Normal / normalizeVector(Normal);
+			float3 SumNormal = normal3;
+			float3 FinalNormal = SumNormal / length(SumNormal);
 
 			normals[threadIndex] = FinalNormal.x;
 			normals[threadIndex + 1] = FinalNormal.y;
@@ -210,8 +205,8 @@ void NormalsAndTangentsCS
 			float3 normal4 = Normal_4(flattenedThreadID, Vertex0);
 			float3 normal5 = Normal_5(flattenedThreadID, Vertex0);
 			
-			float3 Normal = (normal3 + normal4 + normal5) / 3.0f;
-			float3 FinalNormal = Normal / normalizeVector(Normal);
+			float3 SumNormal = (normal3 + normal4 + normal5);
+			float3 FinalNormal = SumNormal / length(SumNormal);
 
 			normals[threadIndex] = FinalNormal.x;
 			normals[threadIndex + 1] = FinalNormal.y;
@@ -221,12 +216,11 @@ void NormalsAndTangentsCS
 		// 5: Bottom Right Vertex Neighbor Check:
 		if (TopCheck && !BottomCheck && !RightCheck && LeftCheck)
 		{
-			float3 normal3 = Normal_3(flattenedThreadID, Vertex0);
 			float3 normal4 = Normal_4(flattenedThreadID, Vertex0);
 			float3 normal5 = Normal_5(flattenedThreadID, Vertex0);
 			
-			float3 Normal = (normal3 + normal4 + normal5) / 3.0f;
-			float3 FinalNormal = Normal / normalizeVector(Normal);
+			float3 SumNormal = (normal4 + normal5);
+			float3 FinalNormal = SumNormal / length(SumNormal);
 
 			normals[threadIndex] = FinalNormal.x;
 			normals[threadIndex + 1] = FinalNormal.y;
@@ -240,8 +234,8 @@ void NormalsAndTangentsCS
 			float3 normal5 = Normal_5(flattenedThreadID, Vertex0);
 			float3 normal6 = Normal_6(flattenedThreadID, Vertex0);
 			
-			float3 Normal = (normal4 + normal5 + normal6) / 3.0f;
-			float3 FinalNormal = Normal / normalizeVector(Normal);
+			float3 SumNormal = (normal4 + normal5 + normal6);
+			float3 FinalNormal = SumNormal / length(SumNormal);
 
 			normals[threadIndex] = FinalNormal.x;
 			normals[threadIndex + 1] = FinalNormal.y;
@@ -253,8 +247,8 @@ void NormalsAndTangentsCS
 		{
 			float3 normal6 = Normal_6(flattenedThreadID, Vertex0);
 			
-			float3 Normal = (normal6) / 1.0f;
-			float3 FinalNormal = Normal / normalizeVector(Normal);
+			float3 SumNormal = normal6;
+			float3 FinalNormal = SumNormal / length(SumNormal);
 
 			normals[threadIndex] = FinalNormal.x;
 			normals[threadIndex + 1] = FinalNormal.y;
@@ -268,8 +262,8 @@ void NormalsAndTangentsCS
 			float3 normal2 = Normal_2(flattenedThreadID, Vertex0);
 			float3 normal6 = Normal_6(flattenedThreadID, Vertex0);
 			
-			float3 Normal = (normal1 + normal2 + normal6) / 3.0f;
-			float3 FinalNormal = Normal / normalizeVector(Normal);
+			float3 SumNormal = (normal1 + normal2 + normal6);
+			float3 FinalNormal = SumNormal / length(SumNormal);
 
 			normals[threadIndex] = FinalNormal.x;
 			normals[threadIndex + 1] = FinalNormal.y;
@@ -286,8 +280,8 @@ void NormalsAndTangentsCS
 			float3 normal5 = Normal_5(flattenedThreadID, Vertex0);
 			float3 normal6 = Normal_6(flattenedThreadID, Vertex0);
 
-			float3 Normal = (normal1 + normal2 + normal3 + normal4 + normal5 + normal6) / 6.0f;
-			float3 FinalNormal = Normal / normalizeVector(Normal);
+			float3 SumNormal = (normal1 + normal2 + normal3 + normal4 + normal5 + normal6);
+			float3 FinalNormal = SumNormal / length(SumNormal);
 
 			normals[threadIndex] = FinalNormal.x;
 			normals[threadIndex + 1] = FinalNormal.y;
@@ -297,6 +291,6 @@ void NormalsAndTangentsCS
 		tangents[threadIndex] = 3.9f;
 		tangents[threadIndex + 1] = 2.8f;
 		tangents[threadIndex + 2] = 1.7f;
-	}
+	} // End range check
 }
 

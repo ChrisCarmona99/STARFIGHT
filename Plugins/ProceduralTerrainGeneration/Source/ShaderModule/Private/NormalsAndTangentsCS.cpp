@@ -223,8 +223,8 @@ void FNormalsAndTangentsCSInterface::ExecuteNormalsAndTangentsCS(
 				const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
 				FPlatformProcess::Sleep(0.05f);
 
-				/*if (NormalsBufferReadback->IsReady() && TangentsBufferReadback->IsReady())*/
-				if (NormalsBufferReadback->IsReady())
+				if (NormalsBufferReadback->IsReady() && TangentsBufferReadback->IsReady())
+				//if (NormalsBufferReadback->IsReady())
 				{
 					UE_LOG(LogTemp, Warning, TEXT("| %s |	    THREAD: NormalsBufferReadback->IsReady() == '%s'    |    TangentsBufferReadback->IsReady() == '%s'"), 
 												  *ThreadName, NormalsBufferReadback->IsReady() ? TEXT("true") : TEXT("false"), TangentsBufferReadback->IsReady() ? TEXT("true") : TEXT("false"));

@@ -24,7 +24,7 @@ struct SHADERMODULE_API FNoiseMapComputeShaderDispatchParams
 	int Z;
 	int THREAD_GROUPS_X;
 
-	
+	// Inputs:
 	int32 mapChunkSize[1];
 	float noiseScale[1];
 	int32 octaveCount[1];
@@ -34,6 +34,7 @@ struct SHADERMODULE_API FNoiseMapComputeShaderDispatchParams
 	float weightCurveExponent[1];
 	FVector2f* octaveOffsets;
 
+	// Outputs:
 	float* noiseMap;
 
 };

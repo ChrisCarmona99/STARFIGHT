@@ -75,6 +75,10 @@ struct FProceduralMeshInputs {
 		UProceduralMeshComponent* proceduralTerrainMesh;
 
 
+	// EXECUTE Parameters:
+	UPROPERTY(BlueprintReadWrite)
+		bool REGENERATE_MAP;
+
 	UPROPERTY(BlueprintReadWrite)
 		bool APPLY_FALLOFF_MAP;
 
@@ -82,6 +86,7 @@ struct FProceduralMeshInputs {
 		bool APPLY_EROSION_MAP;
 
 
+	// General Map Settings:
 	UPROPERTY(BlueprintReadWrite)
 		int32 mapChunkSize;
 
@@ -124,10 +129,42 @@ struct FProceduralMeshInputs {
 
 	// Erosion Parameters:
 	UPROPERTY(BlueprintReadWrite)
-		int32 dropletLifetime;
+		int32 numErosionIterations;
 
 	UPROPERTY(BlueprintReadWrite)
-		int32 numIterations;
+		int32 erosionBrushRadius;
+
+
+	UPROPERTY(BlueprintReadWrite)
+		int32 maxDropletLifetime; // maxLifetime
+
+	UPROPERTY(BlueprintReadWrite)
+		float sedimentCapacityFactor;
+
+	UPROPERTY(BlueprintReadWrite)
+		float minSedimentCapacity;
+
+	UPROPERTY(BlueprintReadWrite)
+		float depositSpeed;
+
+	UPROPERTY(BlueprintReadWrite)
+		float erodeSpeed;
+
+
+	UPROPERTY(BlueprintReadWrite)
+		float evaporateSpeed;
+
+	UPROPERTY(BlueprintReadWrite)
+		float gravity;
+
+	UPROPERTY(BlueprintReadWrite)
+		float startSpeed;
+
+	UPROPERTY(BlueprintReadWrite)
+		float startWater;
+
+	UPROPERTY(BlueprintReadWrite)
+		float inertia;
 };
 
 

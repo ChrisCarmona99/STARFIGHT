@@ -40,6 +40,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mesh Components")
 		UMaterialInterface* _TerrainMaterial;
 
+
 	// Mesh Parameters:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "1. Mesh Parameters")
 		int32 MapChunkSize;
@@ -65,6 +66,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "1. Mesh Parameters")
 		int32 SeedRangeMAX;
 	
+
 	// Noise Parameters:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Noise Parameters")
 		float NoiseScale;
@@ -93,16 +95,53 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Noise Parameters")
 		float C;
 
+
 	// Erosion Parameters:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Erosion Parameters")
-		int32 DropletLifetime;
+		int32 NumErosionIterations;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Erosion Parameters")
-		int32 NumIterations;
+		int32 ErosionBrushRadius;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Erosion Parameters")
+		int32 MaxDropletLifetime; // maxLifetime
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Erosion Parameters")
+		float SedimentCapacityFactor;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Erosion Parameters")
+		float MinSedimentCapacity;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Erosion Parameters")
+		float DepositSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Erosion Parameters")
+		float ErodeSpeed;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Erosion Parameters")
+		float EvaporateSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Erosion Parameters")
+		float Gravity;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Erosion Parameters")
+		float StartSpeed;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Erosion Parameters")
+		float StartWater;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Erosion Parameters")
+		float Inertia;
+
 
 	// Execute:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Execute")
 		bool GENERATE_IN_EDITOR;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Execute")
+		bool REGENERATE_MAP;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Execute")
 		bool APPLY_FALLOFF_MAP;
@@ -110,8 +149,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Execute")
 		bool APPLY_EROSION_MAP;
 
-
-	static void CreateTestTriangle(UProceduralMeshComponent* proceduralTerrainMesh);
 
 	static void BuildTerrainMesh(UProceduralMeshComponent* proceduralTerrainMesh, std::shared_ptr<FGeneratedMeshData> meshData);
 

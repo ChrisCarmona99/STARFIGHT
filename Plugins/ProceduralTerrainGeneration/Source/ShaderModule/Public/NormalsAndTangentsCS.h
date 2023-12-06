@@ -15,7 +15,7 @@
 
 // Temporary struct to create the .generated.h file:
 USTRUCT(BlueprintType)
-struct FMyNewStruct
+struct FNormalsAndTangentsCSTempStruct
 {
 	GENERATED_BODY()
 };
@@ -31,10 +31,11 @@ struct SHADERMODULE_API FNormalsAndTangentsCSDispatchParams
 	int Z;
 	int THREAD_GROUPS_X;
 
-
+	// Input
 	int32 mapChunkSize[1];
 	float* noiseMap;
 
+	// Output:
 	float* normals;
 	float* tangents;
 

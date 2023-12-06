@@ -13,7 +13,7 @@ auto debugPrint = [](const FString ThreadName, float*& NoiseMap, FProceduralMesh
 	float min = 0;
 	float max = 0;
 	UE_LOG(LogTemp, Warning, TEXT("| %s | #: TESTING NoiseMap POST NoiseMapComputeShader:"), *ThreadName);
-	//for (int index = 0; index < Inputs.mapChunkSize * Inputs.mapChunkSize; index += FMath::DivideAndRoundUp(Inputs.mapChunkSize * Inputs.mapChunkSize, 50))
+	//for (int index = 0; index < mapChunkSizeWithBorder * mapChunkSizeWithBorder; index += FMath::DivideAndRoundUp(mapChunkSizeWithBorder * mapChunkSizeWithBorder, 50))
 	for (int index = 0; index < 500; index++)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("        index: %d   |   value: %f"), index, NoiseMap[index]);
@@ -53,11 +53,24 @@ AProceduralTerrain::AProceduralTerrain() :
 	C(0.6),
 
 	// Erosion Parameters:
-	DropletLifetime(30), // NOTE: How many iterations a drop will traverse our mesh triangles until we stop manipulating the vertices
-	NumIterations(1000), // NOTE: Control how many droplets to simulate
+	NumErosionIterations(50000),
+	ErosionBrushRadius(3),
+
+	MaxDropletLifetime(30), // NOTE: How many iterations a drop will traverse our mesh triangles until we stop manipulating the vertices
+	SedimentCapacityFactor(3.0f),
+	MinSedimentCapacity(0.01f),
+	DepositSpeed(0.3f),
+	ErodeSpeed(0.3f),
+
+	EvaporateSpeed(0.01f),
+	Gravity(4.0f),
+	StartSpeed(1.0f),
+	StartWater(1.0f),
+	Inertia(0.3f),
 	
 	// Execute
 	GENERATE_IN_EDITOR(true),
+	REGENERATE_MAP(true),
 	APPLY_FALLOFF_MAP(true),
 	APPLY_EROSION_MAP(true)
 
@@ -85,6 +98,7 @@ void AProceduralTerrain::BeginPlay()
 
 
 
+// This is called everytime there is an edit to the Object
 void AProceduralTerrain::OnConstruction(const FTransform& Transform)
 {
 	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
@@ -117,14 +131,17 @@ void AProceduralTerrain::OnConstruction(const FTransform& Transform)
 	// Set our `Inputs` struct:
 	FProceduralMeshInputs Inputs;
 	Inputs.proceduralTerrainMesh = _ProceduralTerrainMesh;
+	Inputs.REGENERATE_MAP = REGENERATE_MAP;
 	Inputs.APPLY_FALLOFF_MAP = APPLY_FALLOFF_MAP;
 	Inputs.APPLY_EROSION_MAP = APPLY_EROSION_MAP;
 
+	// General
 	Inputs.mapChunkSize = MapChunkSize;
 	Inputs.seed = Seed;
 	Inputs.offset = Offset;
 	Inputs.levelOfDetail = LevelOfDetail;
 
+	// Noise Map
 	Inputs.noiseScale = NoiseScale;
 	Inputs.octaves = Octaves;
 	Inputs.persistence = Persistence;
@@ -135,8 +152,22 @@ void AProceduralTerrain::OnConstruction(const FTransform& Transform)
 	Inputs.b = B;
 	Inputs.c = C;
 
-	Inputs.dropletLifetime = DropletLifetime;
-	Inputs.numIterations = NumIterations;
+	// Erosion:
+	Inputs.numErosionIterations = NumErosionIterations;
+	Inputs.erosionBrushRadius = ErosionBrushRadius;
+
+	Inputs.maxDropletLifetime = MaxDropletLifetime;
+	Inputs.sedimentCapacityFactor = SedimentCapacityFactor;
+	Inputs.minSedimentCapacity = MinSedimentCapacity;
+	Inputs.depositSpeed = DepositSpeed;
+	Inputs.erodeSpeed = ErodeSpeed;
+
+	Inputs.evaporateSpeed = EvaporateSpeed;
+	Inputs.gravity = Gravity;
+	Inputs.startSpeed = StartSpeed;
+	Inputs.startWater = StartWater;
+	Inputs.inertia = Inertia;
+
 
 	// Log all the inputs (Debug purposes):
 	auto printInputs = [Inputs]()
@@ -156,15 +187,23 @@ void AProceduralTerrain::OnConstruction(const FTransform& Transform)
 		UE_LOG(LogTemp, Warning, TEXT("				a (float) == %f"), Inputs.a);
 		UE_LOG(LogTemp, Warning, TEXT("				b (float) == %f"), Inputs.b);
 		UE_LOG(LogTemp, Warning, TEXT("				c (float) == %f"), Inputs.c);
-		UE_LOG(LogTemp, Warning, TEXT("				dropletLifetime (int32) == %d"), Inputs.dropletLifetime);
-		UE_LOG(LogTemp, Warning, TEXT("				numIterations (int32) == %d"), Inputs.numIterations);
 		UE_LOG(LogTemp, Warning, TEXT(""));
 	};
 	printInputs();
 
-	// Regenerate the terrain based off the new input values (This will be executed after the constructor):
-	AProceduralTerrain::ExecuteProceduralMeshGeneration(Inputs);
-	UE_LOG(LogTemp, Warning, TEXT("| %s | 4: OnConstruction DONE"), *ThreadName);
+	//Inputs.REGENERATE_MAP = false; // TODO: Delete later...
+
+	if (Inputs.REGENERATE_MAP == true)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("| %s | 1.1: Inputs.REGENERATE_MAP == TRUE"), *ThreadName);
+		// Regenerate the terrain based off the new input values (This will be executed after the constructor):
+		AProceduralTerrain::ExecuteProceduralMeshGeneration(Inputs);
+		UE_LOG(LogTemp, Warning, TEXT("| %s | 4: OnConstruction DONE"), *ThreadName);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("| %s | 1.1: Inputs.REGENERATE_MAP == FALSE"), *ThreadName);
+	}
 }
 
 
@@ -174,47 +213,6 @@ void AProceduralTerrain::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-}
-
-
-
-void AProceduralTerrain::CreateTestTriangle(UProceduralMeshComponent* proceduralTerrainMesh)
-{
-	TArray<FVector> vertices;
-	vertices.Add(FVector(0, 0, 0));
-	vertices.Add(FVector(0, 100, 0));
-	vertices.Add(FVector(0, 0, 100));
-
-	TArray<int32> Triangles;
-	Triangles.Add(0);
-	Triangles.Add(1);
-	Triangles.Add(2);
-
-	TArray<FVector> normals;
-	normals.Add(FVector(1, 0, 0));
-	normals.Add(FVector(1, 0, 0));
-	normals.Add(FVector(1, 0, 0));
-
-	TArray<FVector2D> UV0;
-	UV0.Add(FVector2D(0, 0));
-	UV0.Add(FVector2D(10, 0));
-	UV0.Add(FVector2D(0, 10));
-
-
-	TArray<FProcMeshTangent> tangents;
-	tangents.Add(FProcMeshTangent(0, 1, 0));
-	tangents.Add(FProcMeshTangent(0, 1, 0));
-	tangents.Add(FProcMeshTangent(0, 1, 0));
-
-	TArray<FLinearColor> vertexColors;
-	vertexColors.Add(FLinearColor(0.75, 0.75, 0.75, 1.0));
-	vertexColors.Add(FLinearColor(0.75, 0.75, 0.75, 1.0));
-	vertexColors.Add(FLinearColor(0.75, 0.75, 0.75, 1.0));
-
-	proceduralTerrainMesh->CreateMeshSection_LinearColor(0, vertices, Triangles, normals, UV0, vertexColors, tangents, true);
-
-	// Enable collision data
-	proceduralTerrainMesh->ContainsPhysicsTriMeshData(true);
 }
 
 
@@ -270,7 +268,6 @@ void AProceduralTerrain::ExecuteProceduralMeshGeneration(FProceduralMeshInputs& 
 					const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
 
 					UE_LOG(LogTemp, Warning, TEXT("| %s | 20: BUILDING MESH"), *ThreadName);
-					//AProceduralTerrain::CreateTestTriangle(Inputs.proceduralTerrainMesh);
 					AProceduralTerrain::BuildTerrainMesh(Inputs.proceduralTerrainMesh, MeshData);
 					UE_LOG(LogTemp, Warning, TEXT("| %s | 21: BUILDING MESH DONE!!!"), *ThreadName);
 				});
@@ -289,19 +286,21 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 	uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 	const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
 
+	// Add chunk size to act as a border for the erosion brush:
+	int32 mapChunkSizeWithBorder = Inputs.mapChunkSize + Inputs.erosionBrushRadius * 2;
 
-	// Create a new `Noise Map` array:
-	float* NoiseMap = new float[Inputs.mapChunkSize * Inputs.mapChunkSize];
+	// Initialize a `Noise Map` array to keep track of the vertex heights (z-coor):
+	float* NoiseMap = new float[mapChunkSizeWithBorder * mapChunkSizeWithBorder];
 
 
 	// Generate the Perline Noise values:
-	ProceduralGeneration::GenerateNoiseMap(NoiseMap, Inputs.mapChunkSize, Inputs.seed, Inputs.offset, Inputs.noiseScale, Inputs.octaves, Inputs.persistence, Inputs.lacunarity, Inputs.heightMultiplier, Inputs.weightCurveExponent);
+	ProceduralGeneration::GenerateNoiseMap(NoiseMap, mapChunkSizeWithBorder, Inputs.seed, Inputs.offset, Inputs.noiseScale, Inputs.octaves, Inputs.persistence, Inputs.lacunarity, Inputs.heightMultiplier, Inputs.weightCurveExponent);
 
 
 	// Apply the Falloff map:
 	if (Inputs.APPLY_FALLOFF_MAP == true)
 	{
-		ProceduralGeneration::ApplyFalloffMap(NoiseMap, Inputs.mapChunkSize, Inputs.a, Inputs.b, Inputs.c);
+		ProceduralGeneration::ApplyFalloffMap(NoiseMap, mapChunkSizeWithBorder, Inputs.a, Inputs.b, Inputs.c);
 	}
 	else {
 		UE_LOG(LogTemp, Warning, TEXT("| %s | 15: ApplyFalloffMap NOT applied..."), *ThreadName);
@@ -311,44 +310,53 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 	// Apply the Erosion map:
 	if (Inputs.APPLY_EROSION_MAP == true)
 	{
-		ProceduralGeneration::ApplyErosionMap(NoiseMap, Inputs.mapChunkSize, Inputs.seed, Inputs.dropletLifetime, Inputs.numIterations);
+		ProceduralGeneration::ApplyErosionMap(NoiseMap, Inputs.seed, mapChunkSizeWithBorder, Inputs.mapChunkSize, Inputs.numErosionIterations, Inputs.erosionBrushRadius, Inputs.maxDropletLifetime, Inputs.sedimentCapacityFactor, 
+			Inputs.minSedimentCapacity, Inputs.depositSpeed, Inputs.erodeSpeed, Inputs.evaporateSpeed, Inputs.gravity, Inputs.startSpeed, Inputs.startWater, Inputs.inertia);
 	}
 	
 
-	// Generate Normals and Tangets:
-	float* Normals = new float[Inputs.mapChunkSize * Inputs.mapChunkSize * 3];
-	float* Tangents = new float[Inputs.mapChunkSize * Inputs.mapChunkSize * 3];
+	// Initialize `Normals` and `Tangets` arrays:
+	float* Normals = new float[mapChunkSizeWithBorder * mapChunkSizeWithBorder * 3];
+	float* Tangents = new float[mapChunkSizeWithBorder * mapChunkSizeWithBorder * 3];
 
-	float* debug1 = new float[Inputs.mapChunkSize * Inputs.mapChunkSize * 2];
-	AProceduralTerrain::AddNormalsAndTangents(Normals, Tangents, NoiseMap, Inputs.mapChunkSize);
-	for (int index = 0; index < 500; index++)
-	{	
-		int y = index % Inputs.mapChunkSize; // inner vector, traverses the y-axis (left to right)
-		int x = std::floor(index / Inputs.mapChunkSize); // outer vector, traveres the x-axis (top to bottom)
-		UE_LOG(LogTemp, Warning, TEXT("        index: %d   |   vertex == (%f, %f, %f)    |    normal == <%f, %f, %f>    |    tangent == <%f, %f, %f>"), 
-								      index, (float)x, (float)y, NoiseMap[index], Normals[index * 3], Normals[index * 3 + 1], Normals[index * 3 + 2], Tangents[index * 3], Tangents[index * 3 + 1], Tangents[index * 3 + 2]);
-	}
+	// Calculate Normals and Tangets:
+	AProceduralTerrain::AddNormalsAndTangents(Normals, Tangents, NoiseMap, mapChunkSizeWithBorder);
+
+	//int upperLimit = mapChunkSizeWithBorder * mapChunkSizeWithBorder < 500 ? mapChunkSizeWithBorder * mapChunkSizeWithBorder : 500;
+	//for (int index = 0; index < upperLimit; index++)
+	//{	
+	//	int y = index % mapChunkSizeWithBorder; // inner vector, traverses the y-axis (left to right)
+	//	int x = std::floor(index / mapChunkSizeWithBorder); // outer vector, traveres the x-axis (top to bottom)
+	//	UE_LOG(LogTemp, Warning, TEXT("        index: %d   |   vertex == (%f, %f, %f)    |    normal == <%f, %f, %f>    |    tangent == <%f, %f, %f>"), 
+	//							      index, (float)x, (float)y, NoiseMap[index], Normals[index * 3], Normals[index * 3 + 1], Normals[index * 3 + 2], Tangents[index * 3], Tangents[index * 3 + 1], Tangents[index * 3 + 2]);
+	//}
+
+
+
+	/* By This point, no more edits should be made to any vertex positions as the normals and tangents have already been calculated... the rest should only consist of populating the MeshData struct: */
+
+
 
 
 	// Sets the starting traversal point for all the vertices (NOTE: In UE5, the x-axis and y-axis are flipped... +x is 'forward' and +y is 'to the right'):
-	float topMostX = (float)(Inputs.mapChunkSize - 1) / 2.0f; // +x
-	float leftMostY = (float)(Inputs.mapChunkSize - 1) / -2.0f; // -y
+	float topMostX = (float)(mapChunkSizeWithBorder - 1) / 2.0f; // +x
+	float leftMostY = (float)(mapChunkSizeWithBorder - 1) / -2.0f; // -y
+	UE_LOG(LogTemp, Warning, TEXT("| %s | TEST:		mapChunkSize == %d"), *ThreadName, mapChunkSizeWithBorder);
+	UE_LOG(LogTemp, Warning, TEXT("| %s | TEST:		(topMostX, leftMostY) == (%f, %f)"), *ThreadName, topMostX, leftMostY);
+	
 
 	// Calculates the increment for mesh LODs (ensures 'levelOfDetail' is NOT 0):
 	int32 LODincrement = Inputs.levelOfDetail == 0 ? 1 : Inputs.levelOfDetail * 2;
 	// Calculates correct number of vertices for our 'vertices' array:
-	int32 verticesPerLine = ((Inputs.mapChunkSize - 1) / LODincrement) + 1;
+	int32 verticesPerLine = ((mapChunkSizeWithBorder - 1) / LODincrement) + 1;
 
 	// Populate MeshData (TODO: Make HLSL):
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 17: Populating `MeshData`:"), *ThreadName);
-	for (int i = 0; i < Inputs.mapChunkSize * Inputs.mapChunkSize; i++)
+	for (int i = 0; i < mapChunkSizeWithBorder * mapChunkSizeWithBorder; i++)
 	{
 		// Define our proportionate 'x' and 'y' indices so that we can map our 1D vector too an 'x' and 'y' coordinate for our vertex
-		int y = i % Inputs.mapChunkSize; // inner vector, traverses the y-axis (left to right)
-		int x = std::floor(i / Inputs.mapChunkSize); // outer vector, traveres the x-axis (top to bottom)
-
-		// Define the height for the current vertex in our iteration
-		//float currentHeight = ProceduralGeneration::calculateWeightCurve(NoiseMap[i], Inputs.weightCurveExponent) * Inputs.heightMultiplier; // WARNING: This probably needs to be applied before we calculate the normals & tangents...
+		int y = i % mapChunkSizeWithBorder; // inner vector, traverses the y-axis (left to right)
+		int x = std::floor(i / mapChunkSizeWithBorder); // outer vector, traveres the x-axis (top to bottom)
 
 		// Add Vertices, UVs, VertexColors, and Triangles:
 		MeshData->vertices.Add(FVector(topMostX - x, leftMostY + y, NoiseMap[i]));
@@ -361,16 +369,16 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 		MeshData->tangents.Add(FProcMeshTangent(Tangents[i2], Tangents[i2 + 1], Tangents[i2 + 2]));
 
 		// Add Triangles:
-		if (y < Inputs.mapChunkSize - 1 && x < Inputs.mapChunkSize - 1)
+		if (y < mapChunkSizeWithBorder - 1 && x < mapChunkSizeWithBorder - 1)
 		{
 			// NOTE: UE5 render mode is counter-clockwise when looking from +z -> =z... the order in which we pass these vertices in is based off that 
 			MeshData->AddTriangle(i, i + verticesPerLine, i + verticesPerLine + 1);
 			MeshData->AddTriangle(i + verticesPerLine + 1, i + 1, i);
 		}
 
-		if (i < 500) {
+		/*if (i < upperLimit) {
 			UE_LOG(LogTemp, Warning, TEXT("        index: %d    |    raw vertex == (%f, %f, %f)    |    centered vertex == (%f, %f, %f)"), i, (float)x, (float)y, NoiseMap[i], (float)(topMostX - x), (float)(leftMostY + y), NoiseMap[i]);
-		}
+		}*/
 	}
 
 	// DONE WITH ALL NESH GENERATION TASKS... DEALLOCATE EVERTHING THAT'S NOT MeshData:

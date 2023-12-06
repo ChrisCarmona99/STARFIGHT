@@ -1,0 +1,163 @@
+#include "/Engine/Public/Platform.ush"
+
+// Arrays:
+RWBuffer<float> _NoiseMap;  // map
+Buffer<int> _RandomIndices;
+Buffer<int> _BrushIndices;
+Buffer<float> _BrushWeights;
+
+// Constants:
+Buffer<int> _MapChunkSize; // mapSize
+Buffer<int> _BrushLength;   // 
+Buffer<int> _BorderSize;  // 
+
+Buffer<int> _MaxDropletLifetime;  // 
+Buffer<float> _Inertia;  //
+Buffer<float> _SedimentCapacityFactor;  // 
+Buffer<float> _MinSedimentCapacity;  // 
+Buffer<float> _DepositSpeed;  //
+Buffer<float> _ErodeSpeed;  // 
+
+Buffer<float> _EvaporateSpeed;  //
+Buffer<float> _Gravity;  //
+Buffer<float> _StartSpeed;  //
+Buffer<float> _StartWater;  //
+
+
+Buffer<int> _NumErosionIterations;
+
+
+RWBuffer<float> _DEBUG_1;
+
+
+
+// Returns float3(gradientX, gradientY, height)
+float3 CalculateHeightAndGradient (float posX, float posY) 
+{
+    int coordX = (int) posX;
+    int coordY = (int) posY;
+
+    // Calculate droplet's offset inside the cell (0,0) = at NW node, (1,1) = at SE node
+    float x = posX - coordX;
+    float y = posY - coordY;
+
+    // Calculate heights of the four nodes of the droplet's cell
+    int nodeIndexNW = coordY * _MapChunkSize[0] + coordX;
+    float heightNW = _NoiseMap[nodeIndexNW];
+    float heightNE = _NoiseMap[nodeIndexNW + 1];
+    float heightSW = _NoiseMap[nodeIndexNW + _MapChunkSize[0]];
+    float heightSE = _NoiseMap[nodeIndexNW + _MapChunkSize[0] + 1];
+
+    // Calculate droplet's direction of flow with bilinear interpolation of height difference along the edges
+    float gradientX = (heightNE - heightNW) * (1 - y) + (heightSE - heightSW) * y;
+    float gradientY = (heightSW - heightNW) * (1 - x) + (heightSE - heightNE) * x;
+
+    // Calculate height with bilinear interpolation of the heights of the nodes of the cell
+    float height = heightNW * (1 - x) * (1 - y) + heightNE * x * (1 - y) + heightSW * (1 - x) * y + heightSE * x * y;
+
+    return float3(gradientX, gradientY, height);
+}
+
+
+
+// We will have a predefined list of randomly selected indices. What we will do is dispatch the amount of threads needed to calculate each of those indices, and then
+// we will use the compute shader's current thread index to iterate over that list of random indices:
+[numthreads(THREAD_COUNT_X, THREAD_COUNT_Y, THREAD_COUNT_Z)]
+void ErosionMapCS
+	(
+		uint3 dispatchThreadId : SV_DispatchThreadID, // not used 
+		uint3 groupThreadId : SV_GroupThreadID, // not used
+		uint3 groupId : SV_GroupID,
+		uint GROUP_INDEX : SV_GroupIndex  // THIS IS THE ONE... An index for a specific thread group but "flattened" into a linear dimension (see notes on how this is calculated)
+	)
+{
+    // Calculate the flattened thread ID given the current thread index of the group + the total thread-per-group factor:
+	uint flattenedThreadID = GROUP_INDEX + (groupId.x * THREAD_COUNT_X);
+
+	// Check if the current "THREAD_INDEX" has exceeded the vertex count of our _NoiseMap (_MapChunkSize[0] * _MapChunkSize[0]),
+	// meaning we have exceeded the size of our heightMap buffer and we don't need to keep generating any more vertex heights
+	if ( (int)flattenedThreadID < _NumErosionIterations[0])
+	{
+		_DEBUG_1[flattenedThreadID] = _RandomIndices[flattenedThreadID];
+
+		// Create water droplet at random point on the _NoiseMap (Get the index for a random droplet via `_RandomIndices`):
+		int randomIndex = _RandomIndices[flattenedThreadID];  // Get the "random index" using the current flattened thread index
+    	float posX = float(randomIndex) % _MapChunkSize[0];  // Top <-> Bottom
+    	float posY = float(randomIndex) / _MapChunkSize[0];  // Left <-> Right
+    	float dirX = 0;
+    	float dirY = 0;
+    	float speed = _StartSpeed[0];
+    	float water = _StartWater[0];
+    	float sediment = 0;
+
+    	for (int lifetime = 0; lifetime < _MaxDropletLifetime[0]; lifetime++) 
+		{
+    	    int nodeX = (int) posX;
+    	    int nodeY = (int) posY;
+    	    int dropletIndex = nodeY * _MapChunkSize[0] + nodeX;
+			
+    	    // Calculate droplet's offset inside the cell (0,0) = at NW node, (1,1) = at SE node
+    	    float cellOffsetX = posX - nodeX;
+    	    float cellOffsetY = posY - nodeY;
+
+    	    // Calculate droplet's height and direction of flow with bilinear interpolation of surrounding heights
+    	    float3 heightAndGradient = CalculateHeightAndGradient (posX, posY);
+
+    	    // Update the droplet's direction and position (move position 1 unit regardless of speed)
+    	    dirX = (dirX * _Inertia[0] - heightAndGradient.x * (1 - _Inertia[0]));
+    	    dirY = (dirY * _Inertia[0] - heightAndGradient.y * (1 - _Inertia[0]));
+    	    // Normalize direction
+    	    float len = max(0.01, sqrt(dirX * dirX + dirY * dirY));
+    	    dirX /= len;
+    	    dirY /= len;
+    	    posX += dirX;
+    	    posY += dirY;
+
+    	    // Stop simulating droplet if it's not moving or has flowed over edge of _NoiseMap
+    	    if ((dirX == 0 && dirY == 0) || posX < _BorderSize[0] || posX > _MapChunkSize[0] - _BorderSize[0] || posY < _BorderSize[0] || posY > _MapChunkSize[0] - _BorderSize[0]) {
+    	        break;
+    	    }
+
+    	    // Find the droplet's new height and calculate the deltaHeight
+    	    float newHeight = CalculateHeightAndGradient (posX, posY).z;
+    	    float deltaHeight = newHeight - heightAndGradient.z;
+
+    	    // Calculate the droplet's sediment capacity (higher when moving fast down a slope and contains lots of water)
+    	    float sedimentCapacity = max(-deltaHeight * speed * water * _SedimentCapacityFactor[0], _MinSedimentCapacity[0]);
+
+    	    // If carrying more sediment than capacity, or if flowing uphill:
+    	    if (sediment > sedimentCapacity || deltaHeight > 0) {
+    	        // If moving uphill (deltaHeight > 0) try fill up to the current height, otherwise deposit a fraction of the excess sediment
+    	        float amountToDeposit = (deltaHeight > 0) ? min(deltaHeight, sediment) : (sediment - sedimentCapacity) * _DepositSpeed[0];
+    	        sediment -= amountToDeposit;
+
+    	        // Add the sediment to the four nodes of the current cell using bilinear interpolation
+    	        // Deposition is not distributed over a radius (like erosion) so that it can fill small pits
+    	        _NoiseMap[dropletIndex] += amountToDeposit * (1 - cellOffsetX) * (1 - cellOffsetY);
+    	        _NoiseMap[dropletIndex + 1] += amountToDeposit * cellOffsetX * (1 - cellOffsetY);
+    	        _NoiseMap[dropletIndex + _MapChunkSize[0]] += amountToDeposit * (1 - cellOffsetX) * cellOffsetY;
+    	        _NoiseMap[dropletIndex + _MapChunkSize[0] + 1] += amountToDeposit * cellOffsetX * cellOffsetY;
+    	    }
+    	    else 
+			{
+    	        // Erode a fraction of the droplet's current carry capacity.
+    	        // Clamp the erosion to the change in height so that it doesn't dig a hole in the terrain behind the droplet
+    	        float amountToErode = min ((sedimentCapacity - sediment) * _ErodeSpeed[0], -deltaHeight);
+	
+    	        for (int i = 0; i < _BrushLength[0]; i ++) {
+    	            int erodeIndex = dropletIndex + _BrushIndices[i];
+
+    	            float weightedErodeAmount = amountToErode * _BrushWeights[i];
+    	            float deltaSediment = (_NoiseMap[erodeIndex] < weightedErodeAmount) ? _NoiseMap[erodeIndex] : weightedErodeAmount;
+    	            _NoiseMap[erodeIndex] -= deltaSediment;
+    	            sediment += deltaSediment;
+    	        }
+    	    }
+
+    	    // Update droplet's speed and water content
+    	    speed = sqrt (max(0,speed * speed + deltaHeight * _Gravity[0]));
+    	    water *= (1 - _EvaporateSpeed[0]);
+    	}
+	} // End range check
+}
+
