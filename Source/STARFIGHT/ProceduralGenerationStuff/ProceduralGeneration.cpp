@@ -18,20 +18,20 @@ ProceduralGeneration::~ProceduralGeneration()
 {
 }
 
-struct vector2D
-{
-	vector2D(int32 x, int32 y) : X(x), Y(y) {}
-	int32 X;
-	int32 Y;
-};
-
-struct vector3D
-{
-	vector3D(int32 x, int32 y, int32 z) : X(x), Y(y), Z(z) {}
-	int32 X;
-	int32 Y;
-	int32 Z;
-};
+//struct vector2D
+//{
+//	vector2D(int32 x, int32 y) : X(x), Y(y) {}
+//	int32 X;
+//	int32 Y;
+//};
+//
+//struct vector3D
+//{
+//	vector3D(int32 x, int32 y, int32 z) : X(x), Y(y), Z(z) {}
+//	int32 X;
+//	int32 Y;
+//	int32 Z;
+//};
 
 void ProceduralGeneration::GenerateNoiseMap(float*& noiseMap, const int32& mapChunkSize, int32& seed, FVector2D& offset, float& noiseScale, int& octaveCount, float& persistance, float& lacurnarity, float& heightMultiplier, float& weightCurveExponent)
 {
@@ -182,8 +182,8 @@ void ProceduralGeneration::ApplyErosionMap(
 	int* randomIndices = new int[numErosionIterations];
 	FRandomStream prng = FRandomStream(seed);
 	for (int i = 0; i < numErosionIterations; i++) {
-		int randomX = prng.FRandRange(erosionBrushRadius, mapChunkSize + erosionBrushRadius);
-		int randomY = prng.FRandRange(erosionBrushRadius, mapChunkSize + erosionBrushRadius);
+		int randomX = prng.FRandRange(erosionBrushRadius, mapChunkSize - erosionBrushRadius);  // I think this is the problem... should be [erosionBrushRadius, mapChunkSize - erosionBrushRadius
+		int randomY = prng.FRandRange(erosionBrushRadius, mapChunkSize - erosionBrushRadius);
 		randomIndices[i] = randomY * mapChunkSize + randomX;
 	}
 
@@ -268,9 +268,12 @@ void ProceduralGeneration::ApplyErosionMap(
 		UE_LOG(LogTemp, Warning, TEXT("| %s | #:#		DEBUG[%d] == %f   |   (x,y) == (%d,%d)"), *ThreadName, index, _DEBUG_1[index], (int32) _DEBUG_1[index] % mapChunkSize, (int32) _DEBUG_1[index] / mapChunkSize)
 	}
 
+	// Cleanup pointers:
 	delete[] randomIndices;
 	delete[] BrushIndexOffsets;
 	delete[] BrushWeights;
+
+	delete ErosionMapCompletionEvent;
 
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 14: ** Dispatch DONE **  | NormalsAndTangentsCS DONE"), *ThreadName);
 }

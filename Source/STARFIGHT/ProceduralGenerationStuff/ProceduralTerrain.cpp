@@ -228,7 +228,8 @@ void AProceduralTerrain::BuildTerrainMesh(UProceduralMeshComponent* proceduralTe
 		meshData->uvs, 
 		meshData->vertexColors, 
 		meshData->tangents, 
-		true);
+		true
+	);
 
 	// Enable collision data
 	proceduralTerrainMesh->ContainsPhysicsTriMeshData(true);
@@ -303,7 +304,7 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 		ProceduralGeneration::ApplyFalloffMap(NoiseMap, mapChunkSizeWithBorder, Inputs.a, Inputs.b, Inputs.c);
 	}
 	else {
-		UE_LOG(LogTemp, Warning, TEXT("| %s | 15: ApplyFalloffMap NOT applied..."), *ThreadName);
+		UE_LOG(LogTemp, Warning, TEXT("| %s | 15: ApplyFalloffMap NOT executed..."), *ThreadName);
 	}
 	
 
@@ -312,6 +313,9 @@ void AProceduralTerrain::GenerateProceduralMeshData(std::shared_ptr<FGeneratedMe
 	{
 		ProceduralGeneration::ApplyErosionMap(NoiseMap, Inputs.seed, mapChunkSizeWithBorder, Inputs.mapChunkSize, Inputs.numErosionIterations, Inputs.erosionBrushRadius, Inputs.maxDropletLifetime, Inputs.sedimentCapacityFactor, 
 			Inputs.minSedimentCapacity, Inputs.depositSpeed, Inputs.erodeSpeed, Inputs.evaporateSpeed, Inputs.gravity, Inputs.startSpeed, Inputs.startWater, Inputs.inertia);
+	}
+	else {
+		UE_LOG(LogTemp, Warning, TEXT("| %s | 16: ApplyErosionMap NOT executed..."), *ThreadName);
 	}
 	
 

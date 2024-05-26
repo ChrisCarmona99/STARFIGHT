@@ -8,26 +8,26 @@
 // Sets default values
 AWeapon::AWeapon()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = false;
+ //	// set this actor to call tick() every frame.  you can turn this off to improve performance if you don't need it.
+	//primaryactortick.bcanevertick = false;
 
-	SetReplicates(true);
+	//setreplicates(true);
 
-	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
-	RootComponent = Root;
+	//root = createdefaultsubobject<uscenecomponent>(text("root"));
+	//rootcomponent = root;
 
-	WeaponMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("WeaponMesh"));
-	WeaponMesh->SetupAttachment(Root);
+	//weaponmesh = createdefaultsubobject<uskeletalmeshcomponent>(text("weaponmesh"));
+	//weaponmesh->setupattachment(root);
 
-	// Preset all of our base weapon stats:
-	CurrentClip = 30;
-	ClipSize = 30;
+	//// preset all of our base weapon stats:
+	//currentclip = 30;
+	//clipsize = 30;
 
-	Reserves = 1000;
-	MaxReserves = 1000;
+	//reserves = 1000;
+	//maxreserves = 1000;
 
-	FireRate = 0.15f;
-	WeaponDamage = 30.0f;
+	//firerate = 0.15f;
+	//weapondamage = 30.0f;
 }
 
 // Called when the game starts or when spawned

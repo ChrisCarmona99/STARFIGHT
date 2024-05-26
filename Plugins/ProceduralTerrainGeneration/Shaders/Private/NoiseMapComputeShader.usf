@@ -131,7 +131,7 @@ void NoiseMapComputeShader
 	if ( (int)flattenedThreadID < (mapChunkSize[0] * mapChunkSize[0]))
 	{
 		// NOTE: Hardcoding these values here for now until I decide how best to handle the inverse lerp of all the returned perlin noise values... (spoiler I might do this in the next compute shader)
-		float maxNoiseHeight = 0;
+		float maxNoiseHeight = 5;  // Originally 0
 		float minNoiseHeight = -5;
 
 		float halfWidth = (float)mapChunkSize[0] / 2.0f;

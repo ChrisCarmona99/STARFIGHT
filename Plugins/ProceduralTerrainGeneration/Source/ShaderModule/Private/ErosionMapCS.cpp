@@ -346,7 +346,7 @@ void FErosionMapCSInterface::ExecuteErosionMapCS(
 
 
 			
-
+			
 
 			// _NoiseMap:
 			BytesPerElement = sizeof(float);
@@ -400,6 +400,7 @@ void FErosionMapCSInterface::ExecuteErosionMapCS(
 
 
 			auto RunnerFunc = [NoiseMapBufferReadback, _DEBUG_1BufferReadback, ErosionMapCompletionEvent, &noiseMap, &_DEBUG_1, Params, elementCount, ByteCount](auto&& RunnerFunc) mutable -> void
+			//auto RunnerFunc = [NoiseMapBufferReadback, _DEBUG_1BufferReadback, ErosionMapCompletionEvent, &Params, elementCount, ByteCount](auto&& RunnerFunc) mutable -> void
 			{
 				uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 				const FString ThreadName = FThreadManager::Get().GetThreadName(ThreadId);
@@ -416,17 +417,21 @@ void FErosionMapCSInterface::ExecuteErosionMapCS(
 					ByteCount = Params._MapChunkSize[0] * Params._MapChunkSize[0] * sizeof(float);
 					float* NOISEMAP_BUFFER = (float*)NoiseMapBufferReadback->Lock(ByteCount);
 					std::memcpy(noiseMap, NOISEMAP_BUFFER, elementCount * sizeof(float));
+					//std::memcpy(Params._NoiseMap, NOISEMAP_BUFFER, elementCount * sizeof(float));
 					NoiseMapBufferReadback->Unlock();
 					delete NoiseMapBufferReadback;
 
 					ByteCount = Params._NumErosionIterations[0] * sizeof(float);
 					float* _DEBUG_1_BUFFER = (float*)_DEBUG_1BufferReadback->Lock(ByteCount);
 					std::memcpy(_DEBUG_1, _DEBUG_1_BUFFER, elementCount * sizeof(float));
+					//std::memcpy(Params._DEBUG_1, _DEBUG_1_BUFFER, elementCount * sizeof(float));
 					_DEBUG_1BufferReadback->Unlock();
 					delete _DEBUG_1BufferReadback;
 
+					//FEvent* LocalEvent = ErosionMapCompletionEvent->Load();
 					if (ErosionMapCompletionEvent != nullptr)
 					{
+						UE_LOG(LogTemp, Warning, TEXT("|    |	    GOOD: ErosionMapCompletionEvent != nullptr"), *ThreadName);
 						ErosionMapCompletionEvent->Trigger();
 					}
 					else
@@ -457,7 +462,6 @@ void FErosionMapCSInterface::ExecuteErosionMapCS(
 
 					RunnerFunc(RunnerFunc); //Call RunnerFunc and pass an instance of itself so that it can recursively call itself within another 'AsyncTask' call if the GPU is not done yet
 				});
-
 		}
 		else {
 			// We silently exit here as we don't want to crash the game if the shader is not found or has an error.

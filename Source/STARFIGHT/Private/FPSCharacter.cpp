@@ -10,34 +10,34 @@
 // CONSTRUCTOR
 AFPSCharacter::AFPSCharacter()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
-	PrimaryActorTick.bCanEverTick = true;
-	
-	
+ //	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	//PrimaryActorTick.bCanEverTick = true;
+	//
+	//
 
-	GetMesh()->SetTickGroup(ETickingGroup::TG_PostUpdateWork); // Fixes latency issues with the camera (Renders the camera at the last tick so that everything can be positioned first):
-	GetMesh()->bVisibleInReflectionCaptures = true;
-	GetMesh()->bCastHiddenShadow = true;
+	//GetMesh()->SetTickGroup(ETickingGroup::TG_PostUpdateWork); // Fixes latency issues with the camera (Renders the camera at the last tick so that everything can be positioned first):
+	//GetMesh()->bVisibleInReflectionCaptures = true;
+	//GetMesh()->bCastHiddenShadow = true;
 
-	ClientMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("ClientMesh"));
-	ClientMesh->SetCastShadow(false); // We only want our main mesh to cast a shadow (so that way our head from the mesh the player can't see will cast a shadow
-	ClientMesh->bCastHiddenShadow = false;
-	ClientMesh->bVisibleInReflectionCaptures = false; // This is so that we cannot see our client mesh in any mirrors/reflections
-	ClientMesh->SetTickGroup(ETickingGroup::TG_PostUpdateWork);
-	ClientMesh->SetupAttachment(GetMesh());
+	//ClientMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("ClientMesh"));
+	//ClientMesh->SetCastShadow(false); // We only want our main mesh to cast a shadow (so that way our head from the mesh the player can't see will cast a shadow
+	//ClientMesh->bCastHiddenShadow = false;
+	//ClientMesh->bVisibleInReflectionCaptures = false; // This is so that we cannot see our client mesh in any mirrors/reflections
+	//ClientMesh->SetTickGroup(ETickingGroup::TG_PostUpdateWork);
+	//ClientMesh->SetupAttachment(GetMesh());
 
-	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera")); // Get the Camera Object
-	Camera->bUsePawnControlRotation = true; // Sets camera to always face where the controller is
-	Camera->SetupAttachment(GetMesh(), FName("head")); // Attach Camera to our pawn's "head" component
+	//Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera")); // Get the Camera Object
+	//Camera->bUsePawnControlRotation = true; // Sets camera to always face where the controller is
+	//Camera->SetupAttachment(GetMesh(), FName("head")); // Attach Camera to our pawn's "head" component
 
-	isJumping = false;
+	//isJumping = false;
 
-	// SET STARTING CHARACTER ATTRIBUTES:
-	Health = 100.0f;
-	MaxHealth = 100.0f;
-	Armor = 100.0f;
-	MaxArmor = 100.0f;
-	KillCount = 0;
+	//// SET STARTING CHARACTER ATTRIBUTES:
+	//Health = 100.0f;
+	//MaxHealth = 100.0f;
+	//Armor = 100.0f;
+	//MaxArmor = 100.0f;
+	//KillCount = 0;
 }
 
 
@@ -45,28 +45,28 @@ AFPSCharacter::AFPSCharacter()
 // Called when the game starts or when spawned:
 void AFPSCharacter::BeginPlay()
 {
-	Super::BeginPlay();
+	//Super::BeginPlay();
 
-	// Setup ADS timeline:
-	if (AimingCurve) // Check if we have an aiming curve:
-	{
-		FOnTimelineFloat TimelineFloat;
-		TimelineFloat.BindDynamic(this, &AFPSCharacter::TimelineProgress);
+	//// Setup ADS timeline:
+	//if (AimingCurve) // Check if we have an aiming curve:
+	//{
+	//	FOnTimelineFloat TimelineFloat;
+	//	TimelineFloat.BindDynamic(this, &AFPSCharacter::TimelineProgress);
 
-		AimingTimeline.AddInterpFloat(AimingCurve, TimelineFloat);
-	}
-	
+	//	AimingTimeline.AddInterpFloat(AimingCurve, TimelineFloat);
+	//}
+	//
 
-	// Client Mesh Logic:
-	if (IsLocallyControlled()) // Check if we are the owner of the current pawn... if so, Make the head on our client mesh!
-	{ 
-		ClientMesh->HideBoneByName(FName("neck_01"), EPhysBodyOp::PBO_None);
-		GetMesh()->SetVisibility(false);
-	}
-	else // If Not... delete our 'ClientMesh' component (since we don't need it, we will just see the other player's main mesh)
-	{ 
-		ClientMesh->DestroyComponent();
-	}
+	//// Client Mesh Logic:
+	//if (IsLocallyControlled()) // Check if we are the owner of the current pawn... if so, Make the head on our client mesh!
+	//{ 
+	//	ClientMesh->HideBoneByName(FName("neck_01"), EPhysBodyOp::PBO_None);
+	//	GetMesh()->SetVisibility(false);
+	//}
+	//else // If Not... delete our 'ClientMesh' component (since we don't need it, we will just see the other player's main mesh)
+	//{ 
+	//	ClientMesh->DestroyComponent();
+	//}
 
 	//// Spawning weapons:
 	//if (HasAuthority()) 

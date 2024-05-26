@@ -78,7 +78,7 @@ void ErosionMapCS
 	// meaning we have exceeded the size of our heightMap buffer and we don't need to keep generating any more vertex heights
 	if ( (int)flattenedThreadID < _NumErosionIterations[0])
 	{
-		_DEBUG_1[flattenedThreadID] = _RandomIndices[flattenedThreadID];
+		// _DEBUG_1[flattenedThreadID] = _RandomIndices[flattenedThreadID];
 
 		// Create water droplet at random point on the _NoiseMap (Get the index for a random droplet via `_RandomIndices`):
 		int randomIndex = _RandomIndices[flattenedThreadID];  // Get the "random index" using the current flattened thread index
