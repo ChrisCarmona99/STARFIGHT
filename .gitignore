@@ -75,3 +75,7 @@ DerivedDataCache/*
 
 *.pak
 *.ipch
+
+
+# Ignore all ue assets under the content folder (this causes the tracked files to be 10+ gigs):
+Content/*

@@ -94,6 +94,8 @@ void ErosionMapCS
 		{
     	    int nodeX = (int) posX;
     	    int nodeY = (int) posY;
+			_DEBUG_1[lifetime * 2] = nodeX;
+			_DEBUG_1[lifetime * 2 + 1] = nodeY;
     	    int dropletIndex = nodeY * _MapChunkSize[0] + nodeX;
 			
     	    // Calculate droplet's offset inside the cell (0,0) = at NW node, (1,1) = at SE node

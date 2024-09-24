@@ -155,7 +155,7 @@ void ProceduralGeneration::ApplyErosionMap(
 	UE_LOG(LogTemp, Warning, TEXT("| %s | 16: ApplyErosionMap CALLED"), *ThreadName);
 
 
-	float* _DEBUG_1 = new float[numErosionIterations];
+	float* _DEBUG_1 = new float[maxDropletLifetime * 2];
 
 
 	// Create brush:
@@ -182,9 +182,10 @@ void ProceduralGeneration::ApplyErosionMap(
 	int* randomIndices = new int[numErosionIterations];
 	FRandomStream prng = FRandomStream(seed);
 	for (int i = 0; i < numErosionIterations; i++) {
-		int randomX = prng.FRandRange(erosionBrushRadius, mapChunkSize - erosionBrushRadius);  // I think this is the problem... should be [erosionBrushRadius, mapChunkSize - erosionBrushRadius
-		int randomY = prng.FRandRange(erosionBrushRadius, mapChunkSize - erosionBrushRadius);
+		int randomX = prng.FRandRange(erosionBrushRadius, mapChunkSize + erosionBrushRadius);  // I think this is the problem... should be [erosionBrushRadius, mapChunkSize - erosionBrushRadius
+		int randomY = prng.FRandRange(erosionBrushRadius, mapChunkSize + erosionBrushRadius);
 		randomIndices[i] = randomY * mapChunkSize + randomX;
+		UE_LOG(LogTemp, Warning, TEXT("randomIndices[%d] == %d   |   (Y, X) == (%d, %d)"), i, randomIndices[i], randomY, randomX);
 	}
 
 	const int BrushIndexOffsetsSize = brushIndexOffsets.size();
@@ -262,16 +263,19 @@ void ProceduralGeneration::ApplyErosionMap(
 		UE_LOG(LogTemp, Warning, TEXT("|    |	 : IN RENDERING THREAD WHEN WE SHOULDN'T BE..."), *ThreadName);
 	}
 
-	int upperLimit = numErosionIterations < 500 ? numErosionIterations : 500;
+	//int upperLimit = numErosionIterations < 500 ? numErosionIterations : 500;
+	int upperLimit = maxDropletLifetime * 2;
 	for (int index = 0; index < upperLimit; index++)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("| %s | #:#		DEBUG[%d] == %f   |   (x,y) == (%d,%d)"), *ThreadName, index, _DEBUG_1[index], (int32) _DEBUG_1[index] % mapChunkSize, (int32) _DEBUG_1[index] / mapChunkSize)
+		UE_LOG(LogTemp, Warning, TEXT("| %s | #:#		DEBUG:  %d   |   (%d, %d)"), *ThreadName, index, (int32)_DEBUG_1[index * 2], (int32)_DEBUG_1[index * 2 + 1])
 	}
 
 	// Cleanup pointers:
 	delete[] randomIndices;
 	delete[] BrushIndexOffsets;
 	delete[] BrushWeights;
+
+	delete[] _DEBUG_1;
 
 	delete ErosionMapCompletionEvent;
 
